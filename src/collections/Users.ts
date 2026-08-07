@@ -26,6 +26,29 @@ export const Users: CollectionConfig = {
   },
   fields: [
     {
+      // Overrides Payload's auto-generated auth password field so the admin
+      // renders a show/hide toggle (eye icon) instead of the default input.
+      //
+      // virtual: Payload auth stores passwords as salt+hash — there is NO
+      // `password` column in the DB. Without virtual the field is persisted,
+      // so every users query SELECTs users.password and fails (column does
+      // not exist) — that broke production login in Aug 2026. The typed value
+      // still flows through data.password into the auth hashing logic.
+      // admin.readOnly: false is required because Payload defaults virtual
+      // fields to read-only.
+      name: 'password',
+      type: 'text',
+      virtual: true,
+      admin: {
+        components: {
+          Field: '/components/fields/PasswordInput#PasswordInput',
+        },
+        readOnly: false,
+        description:
+          'Kata sandi pengguna. Kosongkan saat edit untuk mempertahankan sandi lama.',
+      },
+    },
+    {
       name: 'name',
       type: 'text',
       required: true,
