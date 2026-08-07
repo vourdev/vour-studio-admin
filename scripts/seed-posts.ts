@@ -75,6 +75,9 @@ const listItem = (value: number, ...children: LexNode[]): LexNode => ({
   version: 1,
   value,
   checked: false,
+  // Required: ListItemNode.setIndent throws Lexical error #117
+  // ('Invalid indent value.') when indent is not a number (e.g. undefined).
+  indent: 0,
   children,
 })
 

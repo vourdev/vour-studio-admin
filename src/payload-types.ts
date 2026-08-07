@@ -137,6 +137,7 @@ export interface UserAuthOperations {
  */
 export interface User {
   id: number;
+  password?: string | null;
   name: string;
   /**
    * Editor mengelola konten; admin mengelola konten dan pengguna.
@@ -158,7 +159,6 @@ export interface User {
         expiresAt: string;
       }[]
     | null;
-  password?: string | null;
   collection: 'users';
 }
 /**
@@ -208,7 +208,7 @@ export interface Post {
   id: number;
   title: string;
   /**
-   * Bagian URL artikel, contoh: memilih-antara-website-dan-dashboard.
+   * Bagian URL artikel. Kosongkan untuk mengisi otomatis dari judul.
    */
   slug: string;
   description: string;
@@ -256,6 +256,9 @@ export interface Post {
  */
 export interface Product {
   id: number;
+  /**
+   * Bagian URL. Kosongkan untuk mengisi otomatis dari name.
+   */
   slug: string;
   name: string;
   category: 'Template' | 'Starter Kit' | 'Toolkit';
@@ -265,7 +268,7 @@ export interface Product {
     id?: string | null;
   }[];
   /**
-   * Harga dalam Rupiah. Kosongkan bila belum ditentukan.
+   * Harga dalam Rupiah, contoh: Rp 12.000. Kosongkan bila belum ditentukan.
    */
   price?: number | null;
   status: 'available' | 'soon';
@@ -284,6 +287,9 @@ export interface Product {
  */
 export interface Project {
   id: number;
+  /**
+   * Bagian URL. Kosongkan untuk mengisi otomatis dari name.
+   */
   slug: string;
   name: string;
   industry: string;
@@ -433,6 +439,7 @@ export interface PayloadMigration {
  * via the `definition` "users_select".
  */
 export interface UsersSelect<T extends boolean = true> {
+  password?: T;
   name?: T;
   roles?: T;
   updatedAt?: T;
