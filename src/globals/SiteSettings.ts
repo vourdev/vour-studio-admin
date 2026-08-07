@@ -1,6 +1,7 @@
 import type { GlobalConfig } from 'payload'
 
 import { adminsOrEditors } from '../access'
+import { revalidateSiteGlobal } from '../hooks/revalidate-site'
 
 /**
  * Site-wide settings for the marketing site: contact details, social links and
@@ -70,4 +71,7 @@ export const SiteSettings: GlobalConfig = {
       ],
     },
   ],
+  hooks: {
+    afterChange: [revalidateSiteGlobal],
+  },
 }

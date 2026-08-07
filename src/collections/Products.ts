@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { admins, adminsOrEditors } from '../access'
+import { revalidateSite } from '../hooks/revalidate-site'
 
 /**
  * Digital products (templates, starter kits, toolkits). Field names mirror the
@@ -95,5 +96,8 @@ export const Products: CollectionConfig = {
       },
     },
   ],
+  hooks: {
+    afterChange: [revalidateSite],
+  },
   defaultSort: '-updatedAt',
 }

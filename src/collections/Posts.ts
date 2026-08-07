@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { admins, adminsOrEditors } from '../access'
+import { revalidateSite } from '../hooks/revalidate-site'
 
 /**
  * Blog posts. The marketing site currently ships MDX files under
@@ -119,5 +120,8 @@ export const Posts: CollectionConfig = {
       ],
     },
   ],
+  hooks: {
+    afterChange: [revalidateSite],
+  },
   defaultSort: '-date',
 }

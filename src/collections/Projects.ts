@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { admins, adminsOrEditors } from '../access'
+import { revalidateSite } from '../hooks/revalidate-site'
 
 /**
  * Portfolio case studies. Field names mirror the `Project` type in the
@@ -93,5 +94,8 @@ export const Projects: CollectionConfig = {
       },
     },
   ],
+  hooks: {
+    afterChange: [revalidateSite],
+  },
   defaultSort: '-year',
 }
