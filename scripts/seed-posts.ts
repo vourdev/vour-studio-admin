@@ -12,7 +12,11 @@ import config from '@payload-config'
  */
 
 // --- Lexical node builders -------------------------------------------------
-type LexNode = Record<string, unknown>
+type LexNode = {
+  type: string
+  version: number
+  [key: string]: unknown
+}
 
 const text = (value: string, format = 0): LexNode => ({
   type: 'text',
@@ -82,7 +86,7 @@ const root = (...children: LexNode[]) => ({
     format: '',
     indent: 0,
     children,
-  },
+  } as const,
 })
 
 // Text format flags: 0 normal, 1 bold, 2 italic, 16 inline code.
@@ -164,7 +168,18 @@ const content = root(
   ),
 )
 
-const seedPosts = [
+type SeedPost = {
+  slug: string
+  title: string
+  description: string
+  category: 'Tutorial' | 'Case Study' | 'Dev Notes'
+  date: string
+  readingMinutes: number
+  content: ReturnType<typeof root>
+  related: { label: string; href: string }[]
+}
+
+const seedPosts: SeedPost[] = [
   {
     slug: 'memilih-antara-website-dan-dashboard',
     title: 'Website atau dashboard? Cara memutuskan yang Anda butuhkan lebih dulu',
