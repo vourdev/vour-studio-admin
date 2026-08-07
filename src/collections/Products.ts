@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { admins, adminsOrEditors } from '../access'
+import { formatSlug } from '../lib/format-slug'
 import { revalidateSite } from '../hooks/revalidate-site'
 
 /**
@@ -35,8 +36,15 @@ export const Products: CollectionConfig = {
       required: true,
       unique: true,
       index: true,
+      hooks: {
+        beforeValidate: [
+          ({ value, siblingData }) =>
+            value ? value : formatSlug(siblingData.name),
+        ],
+      },
       admin: {
         position: 'sidebar',
+        description: 'Bagian URL. Kosongkan untuk mengisi otomatis dari name.',
       },
     },
     {
@@ -73,7 +81,10 @@ export const Products: CollectionConfig = {
       min: 0,
       admin: {
         position: 'sidebar',
-        description: 'Harga dalam Rupiah. Kosongkan bila belum ditentukan.',
+        description: 'Harga dalam Rupiah, contoh: Rp 12.000. Kosongkan bila belum ditentukan.',
+        components: {
+          Field: '/components/fields/PriceInput#PriceInput',
+        },
       },
     },
     {

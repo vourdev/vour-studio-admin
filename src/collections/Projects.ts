@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { admins, adminsOrEditors } from '../access'
+import { formatSlug } from '../lib/format-slug'
 import { revalidateSite } from '../hooks/revalidate-site'
 
 /**
@@ -33,8 +34,15 @@ export const Projects: CollectionConfig = {
       required: true,
       unique: true,
       index: true,
+      hooks: {
+        beforeValidate: [
+          ({ value, siblingData }) =>
+            value ? value : formatSlug(siblingData.name),
+        ],
+      },
       admin: {
         position: 'sidebar',
+        description: 'Bagian URL. Kosongkan untuk mengisi otomatis dari name.',
       },
     },
     {
