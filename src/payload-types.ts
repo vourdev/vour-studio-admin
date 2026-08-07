@@ -97,8 +97,12 @@ export interface Config {
     defaultIDType: number;
   };
   fallbackLocale: null;
-  globals: {};
-  globalsSelect: {};
+  globals: {
+    'site-settings': SiteSetting;
+  };
+  globalsSelect: {
+    'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+  };
   locale: null;
   widgets: {
     collections: CollectionsWidget;
@@ -619,6 +623,68 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   batch?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * Kontak, media sosial, dan menu navigasi marketing site.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings".
+ */
+export interface SiteSetting {
+  id: number;
+  contact?: {
+    whatsappNumber?: string | null;
+    phoneNumber?: string | null;
+    contactEmail?: string | null;
+  };
+  socials?:
+    | {
+        label: string;
+        href: string;
+        icon: 'github' | 'linkedin' | 'instagram' | 'tiktok';
+        id?: string | null;
+      }[]
+    | null;
+  mainNav?:
+    | {
+        label: string;
+        href: string;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings_select".
+ */
+export interface SiteSettingsSelect<T extends boolean = true> {
+  contact?:
+    | T
+    | {
+        whatsappNumber?: T;
+        phoneNumber?: T;
+        contactEmail?: T;
+      };
+  socials?:
+    | T
+    | {
+        label?: T;
+        href?: T;
+        icon?: T;
+        id?: T;
+      };
+  mainNav?:
+    | T
+    | {
+        label?: T;
+        href?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

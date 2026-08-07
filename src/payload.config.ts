@@ -14,6 +14,7 @@ import { Posts } from './collections/Posts'
 import { Products } from './collections/Products'
 import { Projects } from './collections/Projects'
 import { Users } from './collections/Users'
+import { SiteSettings } from './globals/SiteSettings'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -34,6 +35,7 @@ export default buildConfig({
     Leads,
     NewsletterSubscribers,
   ],
+  globals: [SiteSettings],
   editor: lexicalEditor(),
   // Email for admin features (e.g. password reset). Falls back to console
   // output when RESEND_API_KEY is unset. Lead notifications are sent separately
