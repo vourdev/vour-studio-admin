@@ -1,0 +1,115 @@
+import type { NextRequest } from 'next/server'
+import { getPayload } from 'payload'
+import config from '@payload-config'
+import { z } from 'zod'
+import { Resend } from 'resend'
+
+import { renderLeadNotification } from '@/emails/lead-notification'
+
+/**
+ * Public lead intake. The marketing site (vour-studio) POSTs here instead of
+ * holding its own database connection.
+ *
+ * The request is authenticated with a shared secret in the `x-api-key` header
+ * (`LEAD_API_KEY`). Payload's own REST endpoint for the `leads` collection is
+ * closed (`create: () => false`), so this route is the only write path.
+ */
+
+const leadSchema = z.object({
+  name: z.string().trim().min(2, 'Nama minimal 2 karakter.').max(120),
+  email: z.email('Format email belum benar.').max(200),
+  whatsapp: z
+    .string()
+    .trim()
+    .max(30)
+    .regex(/^[0-9+\-\s()]*$/, 'Nomor WhatsApp hanya boleh berisi angka.')
+    .optional()
+    .or(z.literal('')),
+  message: z
+    .string()
+    .trim()
+    .min(20, 'Ceritakan sedikit lebih detail, minimal 20 karakter.')
+    .max(4000),
+  sourcePage: z.string().max(200).default('/contact'),
+  /** Honeypot. Real people never see this field, so anything in it is a bot. */
+  company: z.string().max(0).optional().or(z.literal('')),
+  /** Milliseconds between form mount and submit. */
+  elapsedMs: z.coerce.number().nonnegative().default(0),
+})
+
+const MIN_FILL_MS = 2000
+
+export async function POST(request: NextRequest) {
+  // Shared-secret authentication. If no key is configured, reject — the route
+  // should never accept unauthenticated writes in production.
+  const apiKey = process.env.LEAD_API_KEY
+  if (!apiKey) {
+    return Response.json({ error: 'Server tidak dikonfigurasi untuk menerima lead.' }, { status: 503 })
+  }
+  if (request.headers.get('x-api-key') !== apiKey) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch {
+    return Response.json({ error: 'Bad Request' }, { status: 400 })
+  }
+
+  const parsed = leadSchema.safeParse(body)
+  if (!parsed.success) {
+    return Response.json(
+      { error: 'Ada isian yang perlu diperbaiki.', fieldErrors: parsed.error.flatten().fieldErrors },
+      { status: 422 },
+    )
+  }
+
+  const data = parsed.data
+
+  // Silent drops. Telling a bot why it failed only helps it retry.
+  if (data.company) return Response.json({ ok: true }, { status: 201 })
+  if (data.elapsedMs > 0 && data.elapsedMs < MIN_FILL_MS) {
+    return Response.json({ ok: true }, { status: 201 })
+  }
+
+  const payload = await getPayload({ config })
+
+  try {
+    await payload.create({
+      collection: 'leads',
+      data: {
+        name: data.name,
+        email: data.email,
+        whatsapp: data.whatsapp || '',
+        message: data.message,
+        sourcePage: data.sourcePage,
+        status: 'new',
+      },
+    })
+  } catch (error) {
+    console.error('[lead] gagal menyimpan lead:', error)
+    return Response.json({ error: 'Gagal menyimpan lead.' }, { status: 500 })
+  }
+
+  // Notification is best-effort: a Resend outage must not turn a stored lead
+  // into a failed request.
+  const resendKey = process.env.RESEND_API_KEY
+  if (resendKey) {
+    try {
+      const email = renderLeadNotification({ ...data, whatsapp: data.whatsapp || undefined })
+      await new Resend(resendKey).emails.send({
+        from: process.env.RESEND_FROM ?? 'Vour <onboarding@resend.dev>',
+        to: email.to,
+        replyTo: email.replyTo,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      })
+    } catch (error) {
+      console.error('[lead] gagal mengirim notifikasi Resend:', error)
+    }
+  }
+
+  return Response.json({ ok: true }, { status: 201 })
+}

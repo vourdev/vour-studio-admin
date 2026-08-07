@@ -1,67 +1,127 @@
-# Payload Blank Template
+# Vour Studio Admin
 
-This template comes configured with the bare minimum to get started on anything you need.
+CMS untuk Vour Studio — dibangun dengan **Payload CMS 3** di atas **Next.js 16**,
+**PostgreSQL (Neon)**, dan di-deploy ke **Vercel**.
+
+Project ini memegang **seluruh konfigurasi database** ekosistem Vour. Marketing
+site (`vour-studio`) tidak lagi punya koneksi database sendiri — form kontaknya
+mengirim lead ke API publik di sini (`POST /api/leads`).
 
 ## Quick start
 
-This template can be deployed directly from our Cloud hosting and it will setup MongoDB and cloud S3 object storage for media.
+```bash
+npm install
+cp .env.example .env    # isi DATABASE_URI (Neon), PAYLOAD_SECRET, LEAD_API_KEY
+npm run dev             # http://localhost:3000
+```
 
-## Quick Start - local setup
+Kunjungi `/admin` untuk membuat user admin pertama. Sebelum `npm run dev` atau
+`npm run build` pertama kali, jalankan `npm run db:generate` lalu
+`npm run db:migrate` agar skema Postgres dibuat dari collections (lihat di
+bawah).
 
-To spin up this template locally, follow these steps:
+## Scripts
 
-### Clone
+| Command | Apa fungsinya |
+|---|---|
+| `npm run dev` | Dev server (Next.js/Turbopack) |
+| `npm run build` | Production build |
+| `npm run db:generate` | Generate file migrasi SQL dari collections (`payload migrate:create`) |
+| `npm run db:migrate` | Apply migrasi ke database (`payload migrate`) |
+| `npm run db:status` | Cek status migrasi (`payload migrate:status`) |
+| `npm run generate:types` | Generate `payload-types.ts` setelah mengubah collection |
+| `npm run lint` | ESLint |
 
-After you click the `Deploy` button above, you'll want to have standalone copy of this repo on your machine. If you've already cloned this repo, skip to [Development](#development).
+> Catatan: Payload 3 menghasilkan migrasi via `payload migrate`. Untuk
+> production di Vercel, jalankan migrasi lewat build step atau perintah
+> migrasi manual sekali, bukan saat cold start serverless.
 
-### Development
+## Collections
 
-1. First [clone the repo](#clone) if you have not done so already
-2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `MONGODB_URL` from your Cloud project to your `.env` if you want to use S3 storage and the MongoDB database that was created for you.
+| Collection | Deskripsi | Tulis via |
+|---|---|---|
+| `users` | Admin & editor (auth Payload, role-based) | Admin panel |
+| `media` | Upload gambar (sizes: card 768×576, og 1200×630) | Admin panel |
+| `posts` | Artikel blog (draft/publish, rich text Lexical) | Admin panel |
+| `products` | Produk digital (template, starter kit, toolkit) | Admin panel |
+| `projects` | Studi kasus portfolio | Admin panel |
+| `leads` | Pesan dari form kontak marketing site | `POST /api/leads` |
+| `newsletter-subscribers` | Pendaftar newsletter | API route (belum dipakai marketing site) |
 
-3. `pnpm install && pnpm dev` to install dependencies and start the dev server
-4. open `http://localhost:3000` to open the app in your browser
+Field-name collection mengikuti tipe data di marketing site (`lib/content.ts`,
+`lib/data/products.ts`, `lib/data/projects.ts`) sehingga situs bisa mengonsumsi
+API tanpa reshape.
 
-That's it! Changes made in `./src` will be reflected in your app. Follow the on-screen instructions to login and create your first admin user. Then check out [Production](#production) once you're ready to build and serve your app, and [Deployment](#deployment) when you're ready to go live.
+## API publik
 
-#### Docker (Optional)
+`POST /api/leads` — menerima lead dari marketing site.
 
-If you prefer to use Docker for local development instead of a local MongoDB instance, the provided docker-compose.yml file can be used.
+- Header: `x-api-key: <LEAD_API_KEY>` (harus sama dengan env di marketing site)
+- Validasi: zod (sama dengan schema marketing site) + honeypot + elapsed-time
+  anti-bot
+- Efek: simpan ke collection `leads`, lalu kirim email notifikasi via Resend
+  (best-effort; kegagalan email tidak menggagalkan penyimpanan)
 
-To do so, follow these steps:
+> Catatan hardening: custom route handler tidak tercakup `apiLimit` bawaan
+> Payload. Rate limiting per-IP di endpoint ini belum dipasang — di serverless
+> in-memory limiter tidak reliabel. Pertimbangkan limiter eksternal bila bot
+> mulai menyerang endpoint ini.
 
-- Modify the `MONGODB_URL` in your `.env` file to `mongodb://127.0.0.1/<dbname>`
-- Modify the `docker-compose.yml` file's `MONGODB_URL` to match the above `<dbname>`
-- Run `docker-compose up` to start the database, optionally pass `-d` to run in the background.
+## Env vars
 
-## How it works
+| Variable | Wajib? | Catatan |
+|---|---|---|
+| `DATABASE_URI` | Ya | Pooled connection string Neon (mis. `...pooler.neon.tech...?sslmode=require`) |
+| `PAYLOAD_SECRET` | Ya | Random string, penanda session admin |
+| `LEAD_API_KEY` | Ya | Shared secret dengan marketing site |
+| `RESEND_API_KEY` / `RESEND_FROM` / `LEAD_NOTIFICATION_EMAIL` | Opsional | Email notifikasi lead |
+| `R2_BUCKET` / `R2_ENDPOINT` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_PUBLIC_URL` | Opsional | Media upload + serving via Cloudflare R2 (wajib di Vercel) |
+| `NEXT_PUBLIC_SERVER_URL` | Opsional | Base URL (media, canonical) |
 
-The Payload config is tailored specifically to the needs of most websites. It is pre-configured in the following ways:
+## Struktur
 
-### Collections
+```
+src/
+  collections/          Users, Media, Posts, Products, Projects, Leads, NewsletterSubscribers
+  access/               Helper access control (admins, adminsOrEditors, authenticated, anyone)
+  emails/               Template email notifikasi lead (inline-styled HTML)
+  app/
+    (payload)/          Admin panel Payload + REST/GraphQL routes
+    api/leads/route.ts  Endpoint publik intake lead
+```
 
-See the [Collections](https://payloadcms.com/docs/configuration/collections) docs for details on how to extend this functionality.
+Root (`/`) di-redirect ke `/admin` (login saat belum autentikasi); halaman
+Welcome bawaan template sudah dihapus.
 
-- #### Users (Authentication)
+## Deployment ke Vercel
 
-  Users are auth-enabled collections that have access to the admin panel.
+```bash
+npx vercel link
+npx vercel env add DATABASE_URI production
+npx vercel env add PAYLOAD_SECRET production
+npx vercel env add LEAD_API_KEY production
+npx vercel --prod
+```
 
-  For additional help, see the official [Auth Example](https://github.com/payloadcms/payload/tree/3.x/examples/auth) or the [Authentication](https://payloadcms.com/docs/authentication/overview#authentication-overview) docs.
+### Media upload (R2)
 
-- #### Media
+Di Vercel, filesystem ephemeral dan limit body 4.5MB — upload media WAJIB lewat
+storage eksternal. Plugin `@payloadcms/storage-s3` sudah dipasang dan diarahkan
+ke **Cloudflare R2** (S3-compatible; free tier 10 GB + egress gratis — lebih
+besar dari Vercel Blob 1 GB):
 
-  This is the uploads enabled collection. It features pre-configured sizes, focal point and manual resizing to help you manage your pictures.
+1. Buat bucket R2 dan API token dengan izin R2 read/write.
+2. **Buat bucket publik**: R2 mengabaikan S3 ACL, jadi akses publik diatur di
+   level bucket — aktifkan public access (subdomain `*.r2.dev`) atau pasang
+   custom domain (mis. `media.vour.studio`).
+3. Isi `R2_BUCKET`, `R2_ENDPOINT` (`https://<account-id>.r2.cloudflarestorage.com`
+   — hanya untuk upload), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, dan
+   `R2_PUBLIC_URL` (URL publik yang menyajikan file, mis. `https://pub-<hash>.r2.dev`
+   atau `https://media.vour.studio`). URL media di Payload dibangun dari
+   `R2_PUBLIC_URL` via `generateFileURL`. Plugin aktif hanya jika ketiganya
+   terisi; tanpanya (mis. lokal) media tersimpan di filesystem lokal.
 
-### Docker
-
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
-
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
-
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
-
-## Questions
-
-If you have any issues or questions, reach out to us on [Discord](https://discord.com/invite/payload) or start a [GitHub discussion](https://github.com/payloadcms/payload/discussions).
+Catatan: file tetap lewat server (bukan direct-to-client upload), jadi gambar
+>4.5MB tidak bisa di-upload di Vercel — kompres atau batasi ukuran. Jika media
+dipasang di custom domain, tambahkan hostname-nya ke `images.remotePatterns`
+di `next.config.ts`.
