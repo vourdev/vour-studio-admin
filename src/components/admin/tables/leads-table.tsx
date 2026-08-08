@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, Row, Table } from '@tanstack/react-table'
 import { useState } from 'react'
 
 import type { Lead } from '@/payload-types'
@@ -24,14 +24,14 @@ const useColumns = (canWrite: boolean, onRefresh: () => void): ColumnDef<Lead>[]
     ? [
         {
           id: 'select',
-          header: ({ table }: { table: any }) => (
+          header: ({ table }: { table: Table<Lead> }) => (
             <Checkbox
               checked={table.getIsAllPageRowsSelected()}
               onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
               aria-label="Pilih semua"
             />
           ),
-          cell: ({ row }: { row: any }) => (
+          cell: ({ row }: { row: Row<Lead> }) => (
             <Checkbox
               checked={row.getIsSelected()}
               onCheckedChange={(value) => row.toggleSelected(!!value)}

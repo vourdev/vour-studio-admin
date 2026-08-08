@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, Row, Table } from '@tanstack/react-table'
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 
@@ -23,14 +23,14 @@ const useColumns = (canWrite: boolean, onRefresh: () => void): ColumnDef<Project
     ? [
         {
           id: 'select',
-          header: ({ table }: { table: any }) => (
+          header: ({ table }: { table: Table<Project> }) => (
             <Checkbox
               checked={table.getIsAllPageRowsSelected()}
               onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
               aria-label="Pilih semua"
             />
           ),
-          cell: ({ row }: { row: any }) => (
+          cell: ({ row }: { row: Row<Project> }) => (
             <Checkbox
               checked={row.getIsSelected()}
               onCheckedChange={(value) => row.toggleSelected(!!value)}

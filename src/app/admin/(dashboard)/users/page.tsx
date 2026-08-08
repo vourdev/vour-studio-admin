@@ -31,7 +31,12 @@ export default async function UsersPage() {
       <PageHeader title="Users" description="Kelola akses admin panel." />
       <Card>
         <CardContent className="pt-6">
-          <UsersTable initialData={initial.docs} initialRowCount={initial.totalDocs} />
+          {/* Only admins reach this page, so they always can write users. */}
+          <UsersTable
+            canWrite
+            initialData={initial.docs}
+            initialRowCount={initial.totalDocs}
+          />
         </CardContent>
       </Card>
     </div>

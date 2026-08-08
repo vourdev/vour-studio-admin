@@ -115,6 +115,7 @@ export function MediaPicker({
                 )}
               >
                 {mediaUrl(item) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={mediaUrl(item)}
                     alt={item.alt || item.filename || ''}
@@ -155,8 +156,8 @@ export function MediaThumb({ media }: { media?: Media | number | null }) {
   if (!media || typeof media === 'number') return null
   const url = mediaUrl(media)
   if (!url) return null
-  // eslint-disable-next-line @next/next/no-img-element
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img
       src={url}
       alt={media.alt || media.filename || ''}

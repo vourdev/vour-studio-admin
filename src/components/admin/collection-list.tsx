@@ -64,8 +64,13 @@ export function CollectionList<T extends { id: number | string }>({
   // below would re-run forever (each fetch → setState → re-render → new
   // reference → fetch …), hammering the API in an infinite loop.
   const extraQueryKey = React.useMemo(() => JSON.stringify(extraQuery), [extraQuery])
+  // Deliberately keyed on the serialized value, not the object reference: callers
+  // pass fresh object/array literals on every render, so depending on the value
+  // directly would re-trigger the fetch effect in an infinite loop.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const stableExtraQuery = React.useMemo(() => extraQuery, [extraQueryKey])
   const searchFieldsKey = React.useMemo(() => JSON.stringify(searchFields), [searchFields])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const stableSearchFields = React.useMemo(() => searchFields, [searchFieldsKey])
 
   // Debounce the search input so we don't hit the API on every keystroke.

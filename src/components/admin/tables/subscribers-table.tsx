@@ -1,10 +1,9 @@
 'use client'
 
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, Row, Table } from '@tanstack/react-table'
 import { useState } from 'react'
 
 import type { NewsletterSubscriber } from '@/payload-types'
-import { DeleteSubscriberButton } from '@/components/admin/delete-subscriber-button'
 import { CollectionList } from '@/components/admin/collection-list'
 import { Checkbox } from '@/components/ui/checkbox'
 import { TableActions } from '@/components/admin/table-actions'
@@ -21,14 +20,14 @@ const useColumns = (canWrite: boolean, onRefresh: () => void): ColumnDef<Newslet
     ? [
         {
           id: 'select',
-          header: ({ table }: { table: any }) => (
+          header: ({ table }: { table: Table<NewsletterSubscriber> }) => (
             <Checkbox
               checked={table.getIsAllPageRowsSelected()}
               onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
               aria-label="Pilih semua"
             />
           ),
-          cell: ({ row }: { row: any }) => (
+          cell: ({ row }: { row: Row<NewsletterSubscriber> }) => (
             <Checkbox
               checked={row.getIsSelected()}
               onCheckedChange={(value) => row.toggleSelected(!!value)}

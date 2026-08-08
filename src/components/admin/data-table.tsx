@@ -140,6 +140,10 @@ export function DataTable<TData>({
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [deleting, setDeleting] = React.useState(false)
 
+  // TanStack Table's useReactTable() returns imperative functions that the
+  // React Compiler cannot memoize — informational only (component skips
+  // auto-memoization); the table still works as expected.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
