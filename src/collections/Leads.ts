@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { adminsOrEditors } from '../access'
+import { canReadCollection, canWriteCollection } from '../access'
 
 /**
  * Leads submitted through the public marketing site (vour-studio).
@@ -25,9 +25,9 @@ export const Leads: CollectionConfig = {
   },
   access: {
     create: () => false,
-    read: adminsOrEditors,
-    update: adminsOrEditors,
-    delete: adminsOrEditors,
+    read: canReadCollection('leads'),
+    update: canWriteCollection('leads'),
+    delete: canWriteCollection('leads'),
   },
   fields: [
     {

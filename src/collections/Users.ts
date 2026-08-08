@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { admins, isAdmin } from '../access'
+import { PERMISSIONABLE_COLLECTIONS } from '../lib/permissions'
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -26,9 +27,6 @@ export const Users: CollectionConfig = {
   },
   fields: [
     {
-      // Overrides Payload's auto-generated auth password field so the admin
-      // renders a show/hide toggle (eye icon) instead of the default input.
-      //
       // virtual: Payload auth stores passwords as salt+hash — there is NO
       // `password` column in the DB. Without virtual the field is persisted,
       // so every users query SELECTs users.password and fails (column does
@@ -40,9 +38,6 @@ export const Users: CollectionConfig = {
       type: 'text',
       virtual: true,
       admin: {
-        components: {
-          Field: '/components/fields/PasswordInput#PasswordInput',
-        },
         readOnly: false,
         description:
           'Kata sandi pengguna. Kosongkan saat edit untuk mempertahankan sandi lama.',
@@ -67,6 +62,41 @@ export const Users: CollectionConfig = {
       },
       admin: {
         description: 'Editor mengelola konten; admin mengelola konten dan pengguna.',
+      },
+    },
+    {
+      name: 'permissions',
+      type: 'array',
+      label: 'Izin per Koleksi',
+      fields: [
+        {
+          name: 'collection',
+          type: 'select',
+          required: true,
+          options: PERMISSIONABLE_COLLECTIONS.map(({ slug, label }) => ({
+            label,
+            value: slug,
+          })),
+        },
+        {
+          name: 'canRead',
+          type: 'checkbox',
+          defaultValue: true,
+        },
+        {
+          name: 'canWrite',
+          type: 'checkbox',
+          defaultValue: false,
+        },
+      ],
+      saveToJWT: true,
+      access: {
+        // Only admins can change permissions.
+        update: ({ req: { user } }) => Boolean(user?.roles?.includes('admin')),
+      },
+      admin: {
+        description:
+          'Hak akses per koleksi: Baca / Tulis. Admin otomatis punya akses penuh.',
       },
     },
   ],

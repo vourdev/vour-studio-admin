@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { admins, adminsOrEditors } from '../access'
+import { canWriteCollection } from '../access'
 import { formatSlug } from '../lib/format-slug'
 import { revalidateSite } from '../hooks/revalidate-site'
 
@@ -22,12 +22,12 @@ export const Products: CollectionConfig = {
     listSearchableFields: ['name', 'tagline', 'slug'],
   },
   access: {
-    create: adminsOrEditors,
+    create: canWriteCollection('products'),
     // All products are public: the marketing site renders `soon` items with a
     // disabled CTA, so filtering by status here would empty /products.
     read: () => true,
-    update: adminsOrEditors,
-    delete: admins,
+    update: canWriteCollection('products'),
+    delete: canWriteCollection('products'),
   },
   fields: [
     {
@@ -82,9 +82,6 @@ export const Products: CollectionConfig = {
       admin: {
         position: 'sidebar',
         description: 'Harga dalam Rupiah, contoh: Rp 12.000. Kosongkan bila belum ditentukan.',
-        components: {
-          Field: '/components/fields/PriceInput#PriceInput',
-        },
       },
     },
     {

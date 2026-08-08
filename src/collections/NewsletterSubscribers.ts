@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { adminsOrEditors } from '../access'
+import { canReadCollection, canWriteCollection } from '../access'
 
 /**
  * Newsletter subscribers. The marketing site currently has no newsletter form
@@ -22,9 +22,9 @@ export const NewsletterSubscribers: CollectionConfig = {
   },
   access: {
     create: () => false,
-    read: adminsOrEditors,
-    update: adminsOrEditors,
-    delete: adminsOrEditors,
+    read: canReadCollection('newsletter-subscribers'),
+    update: canWriteCollection('newsletter-subscribers'),
+    delete: canWriteCollection('newsletter-subscribers'),
   },
   fields: [
     {

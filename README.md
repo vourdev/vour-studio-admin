@@ -40,7 +40,7 @@ bawah).
 
 | Collection | Deskripsi | Tulis via |
 |---|---|---|
-| `users` | Admin & editor (auth Payload, role-based) | Admin panel |
+| `users` | Admin & editor (auth Payload) + izin per koleksi (RBAC) | Admin panel |
 | `media` | Upload gambar (sizes: card 768×576, og 1200×630) | Admin panel |
 | `posts` | Artikel blog (draft/publish, rich text Lexical) | Admin panel |
 | `products` | Produk digital (template, starter kit, toolkit) | Admin panel |
@@ -77,16 +77,34 @@ API tanpa reshape.
 | `RESEND_API_KEY` / `RESEND_FROM` / `LEAD_NOTIFICATION_EMAIL` | Opsional | Email notifikasi lead |
 | `R2_BUCKET` / `R2_ENDPOINT` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_PUBLIC_URL` | Opsional | Media upload + serving via Cloudflare R2 (wajib di Vercel) |
 | `NEXT_PUBLIC_SERVER_URL` | Opsional | Base URL (media, canonical) |
+| `MARKETING_SITE_URL` | Opsional | Base URL marketing site untuk link preview post (fallback ke `REVALIDATE_URL`) |
+| `REVALIDATE_URL` / `REVALIDATE_SECRET` | Opsional | Webhook revalidate marketing site (dipanggil setelah konten berubah) |
+
+## RBAC
+
+Akses admin panel diatur per user: role `admin` adalah superuser, sementara
+user lain di-gate per koleksi melalui field `permissions` (Baca/Tulis) di
+halaman edit user (hanya admin). Koleksi yang bisa diatur: `posts`, `products`,
+`projects`, `media`, `leads`, `newsletter-subscribers`, `site-settings`.
+
+- Tanpa entri permission = tanpa akses (fail-closed).
+- Access control dieksekusi dua lapis: di REST API (collection access
+  `canReadCollection`/`canWriteCollection`, data izin di `saveToJWT`) dan di
+  guard halaman server components (`canRead`/`canWrite` + `notFound()`).
+- Perubahan izin berlaku efektif untuk REST setelah user login ulang (token
+  2 jam); halaman server selalu fresh.
 
 ## Struktur
 
 ```
 src/
   collections/          Users, Media, Posts, Products, Projects, Leads, NewsletterSubscribers
-  access/               Helper access control (admins, adminsOrEditors, authenticated, anyone)
+  access/               Helper access control (anyone, admins, isAdmin, canReadCollection, canWriteCollection)
+  lib/permissions.ts    RBAC: daftar koleksi + canRead/canWrite/isAdmin
   emails/               Template email notifikasi lead (inline-styled HTML)
   app/
-    (payload)/          Admin panel Payload + REST/GraphQL routes
+    admin/              Dashboard shadcn/ui custom (login + halaman per koleksi)
+    (payload)/          REST/GraphQL routes Payload (admin panel bawaan dihapus)
     api/leads/route.ts  Endpoint publik intake lead
 ```
 

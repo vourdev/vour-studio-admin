@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { admins, adminsOrEditors } from '../access'
+import { canWriteCollection } from '../access'
 import { formatSlug } from '../lib/format-slug'
 import { revalidateSite } from '../hooks/revalidate-site'
 
@@ -22,10 +22,10 @@ export const Projects: CollectionConfig = {
     listSearchableFields: ['name', 'industry', 'challenge', 'solution'],
   },
   access: {
-    create: adminsOrEditors,
+    create: canWriteCollection('projects'),
     read: () => true,
-    update: adminsOrEditors,
-    delete: admins,
+    update: canWriteCollection('projects'),
+    delete: canWriteCollection('projects'),
   },
   fields: [
     {

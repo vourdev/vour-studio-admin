@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { admins, adminsOrEditors } from '../access'
+import { canReadCollection, canWriteCollection } from '../access'
 import { formatSlug } from '../lib/format-slug'
 import { revalidateSite } from '../hooks/revalidate-site'
 
@@ -26,14 +26,15 @@ export const Posts: CollectionConfig = {
     listSearchableFields: ['title', 'description', 'slug'],
   },
   access: {
-    create: adminsOrEditors,
-    read: ({ req: { user } }) => {
-      // Public sees published posts only; logged-in admins see everything.
-      if (user) return true
-      return { _status: { equals: 'published' } }
+    create: canWriteCollection('posts'),
+    read: ({ req }) => {
+      // Public sees published posts only; anyone with posts read permission
+      // (or admins) sees everything.
+      if (!req.user) return { _status: { equals: 'published' } }
+      return canReadCollection('posts')({ req })
     },
-    update: adminsOrEditors,
-    delete: admins,
+    update: canWriteCollection('posts'),
+    delete: canWriteCollection('posts'),
   },
   versions: {
     drafts: true,

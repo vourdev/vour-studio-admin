@@ -1,6 +1,6 @@
 import type { CollectionConfig } from 'payload'
 
-import { anyone } from '../access'
+import { anyone, canWriteCollection } from '../access'
 
 /**
  * Uploaded images used across posts, products and projects. Image sizes match
@@ -18,6 +18,9 @@ export const Media: CollectionConfig = {
   },
   access: {
     read: anyone,
+    create: canWriteCollection('media'),
+    update: canWriteCollection('media'),
+    delete: canWriteCollection('media'),
   },
   upload: {
     mimeTypes: ['image/*'],

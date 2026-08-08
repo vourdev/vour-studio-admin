@@ -143,6 +143,17 @@ export interface User {
    * Editor mengelola konten; admin mengelola konten dan pengguna.
    */
   roles: ('admin' | 'editor')[];
+  /**
+   * Hak akses per koleksi: Baca / Tulis. Admin otomatis punya akses penuh.
+   */
+  permissions?:
+    | {
+        collection: 'posts' | 'products' | 'projects' | 'media' | 'leads' | 'newsletter-subscribers' | 'site-settings';
+        canRead?: boolean | null;
+        canWrite?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
   email: string;
@@ -442,6 +453,14 @@ export interface UsersSelect<T extends boolean = true> {
   password?: T;
   name?: T;
   roles?: T;
+  permissions?:
+    | T
+    | {
+        collection?: T;
+        canRead?: T;
+        canWrite?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   email?: T;

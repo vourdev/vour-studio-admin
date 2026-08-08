@@ -1,6 +1,6 @@
 import type { GlobalConfig } from 'payload'
 
-import { adminsOrEditors } from '../access'
+import { canWriteCollection } from '../access'
 import { revalidateSiteGlobal } from '../hooks/revalidate-site'
 
 /**
@@ -17,7 +17,7 @@ export const SiteSettings: GlobalConfig = {
   },
   access: {
     read: () => true,
-    update: adminsOrEditors,
+    update: canWriteCollection('site-settings'),
   },
   fields: [
     {
