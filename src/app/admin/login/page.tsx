@@ -1,9 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 
-import { getPayload } from 'payload'
-import config from '@payload-config'
-import { headers } from 'next/headers'
+import { getCurrentUser } from '@/lib/get-current-user'
 
 import { Logo } from '@/components/admin/logo'
 import { LoginForm } from '@/components/admin/login-form'
@@ -14,8 +12,7 @@ export const metadata: Metadata = {
 
 export default async function LoginPage() {
   // Already authenticated? Skip the login screen.
-  const payload = await getPayload({ config })
-  const { user } = await payload.auth({ headers: await headers() })
+  const user = await getCurrentUser()
   if (user) redirect('/admin')
 
   return (

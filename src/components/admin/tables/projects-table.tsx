@@ -18,26 +18,30 @@ const formatDate = (value: string) =>
     year: 'numeric',
   })
 
-const useColumns = (onRefresh: () => void): ColumnDef<Project>[] => [
-  {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected()}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Pilih semua"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Pilih baris"
-      />
-    ),
-    enableSorting: false,
-    size: 40,
-  },
+const useColumns = (canWrite: boolean, onRefresh: () => void): ColumnDef<Project>[] => [
+  ...(canWrite
+    ? [
+        {
+          id: 'select',
+          header: ({ table }: { table: any }) => (
+            <Checkbox
+              checked={table.getIsAllPageRowsSelected()}
+              onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+              aria-label="Pilih semua"
+            />
+          ),
+          cell: ({ row }: { row: any }) => (
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(!!value)}
+              aria-label="Pilih baris"
+            />
+          ),
+          enableSorting: false,
+          size: 40,
+        },
+      ]
+    : []),
   {
     accessorKey: 'name',
     header: 'Nama',
@@ -70,20 +74,38 @@ const useColumns = (onRefresh: () => void): ColumnDef<Project>[] => [
         id={row.original.id}
         editHref={`/admin/projects/${row.original.id}`}
         onDeleted={onRefresh}
+        canWrite={canWrite}
       />
     ),
     size: 50,
   },
 ]
 
-export function ProjectsTable({ canWrite = false }: { canWrite?: boolean }) {
+export function ProjectsTable({
+  canWrite = false,
+  initialData,
+  initialRowCount,
+}: {
+  canWrite?: boolean
+  initialData?: Project[]
+  initialRowCount?: number
+}) {
   const [refreshKey, setRefreshKey] = useState(0)
-  const columns = useColumns(() => setRefreshKey((k) => k + 1))
+  // After a client-side delete the server-rendered initialData is stale — don't
+  // reseed from it on remount, fetch fresh rows instead (avoids the deleted row
+  // flashing back).
+  const [stale, setStale] = useState(false)
+  const columns = useColumns(canWrite, () => {
+    setStale(true)
+    setRefreshKey((k) => k + 1)
+  })
 
   return (
     <CollectionList<Project>
       key={refreshKey}
       collection="projects"
+      initialData={stale ? undefined : initialData}
+      initialRowCount={stale ? undefined : initialRowCount}
       columns={columns}
       searchFields={['name', 'industry', 'challenge', 'solution']}
       defaultSort="-year"

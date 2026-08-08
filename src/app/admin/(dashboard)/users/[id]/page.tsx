@@ -3,8 +3,8 @@ import { notFound } from 'next/navigation'
 
 import { getPayload } from 'payload'
 import config from '@payload-config'
-import { headers } from 'next/headers'
 
+import { getCurrentUser } from '@/lib/get-current-user'
 import { UserForm } from '@/components/admin/user-form'
 
 export const metadata: Metadata = {
@@ -13,10 +13,10 @@ export const metadata: Metadata = {
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const payload = await getPayload({ config })
-  const { user } = await payload.auth({ headers: await headers() })
+  const user = await getCurrentUser()
   if (!user?.roles?.includes('admin')) notFound()
 
+  const payload = await getPayload({ config })
   const target = await payload.findByID({ collection: 'users', id }).catch(() => null)
   if (!target) notFound()
 

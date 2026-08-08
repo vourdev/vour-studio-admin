@@ -23,6 +23,8 @@ export function CollectionList<T extends { id: number | string }>({
   emptyMessage,
   extraQuery = {},
   enableBulkDelete = false,
+  initialData,
+  initialRowCount,
 }: {
   collection: string
   columns: ColumnDef<T>[]
@@ -34,9 +36,12 @@ export function CollectionList<T extends { id: number | string }>({
   emptyMessage?: string
   extraQuery?: Record<string, unknown>
   enableBulkDelete?: boolean
+  /** First page rendered server-side (Local API) — shown immediately, no mount re-fetch. */
+  initialData?: T[]
+  initialRowCount?: number
 }) {
-  const [data, setData] = React.useState<T[]>([])
-  const [rowCount, setRowCount] = React.useState(0)
+  const [data, setData] = React.useState<T[]>(initialData ?? [])
+  const [rowCount, setRowCount] = React.useState(initialRowCount ?? initialData?.length ?? 0)
   const [page, setPage] = React.useState(1)
   // Clamp to the page-size options offered by the DataTable so the Select
   // always has a matching item (the prop only seeds the initial value).
@@ -46,8 +51,13 @@ export function CollectionList<T extends { id: number | string }>({
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [search, setSearch] = React.useState('')
   const [debouncedSearch, setDebouncedSearch] = React.useState('')
-  const [loading, setLoading] = React.useState(true)
+  const [loading, setLoading] = React.useState(!initialData)
   const [refreshKey, setRefreshKey] = React.useState(0)
+  // The server already rendered the first page — skip the mount fetch entirely
+  // so navigating to a list doesn't duplicate the SSR query with a REST call.
+  // Remounts after a client-side delete pass no initialData (tables mark the
+  // seed stale), so those fetch fresh rows with the skeleton as before.
+  const skipInitialFetch = React.useRef(Boolean(initialData))
 
   // Callers pass object/array literals that are recreated on every parent
   // render. Without these memoized, reference-stable versions the fetch effect
@@ -82,6 +92,10 @@ export function CollectionList<T extends { id: number | string }>({
   }, [sorting, defaultSort])
 
   React.useEffect(() => {
+    if (skipInitialFetch.current) {
+      skipInitialFetch.current = false
+      return
+    }
     let cancelled = false
     const timer = setTimeout(() => {
       setLoading(true)
@@ -90,6 +104,9 @@ export function CollectionList<T extends { id: number | string }>({
         limit: pageSize,
         sort: sortParam,
         where,
+        // Tables only render scalar fields — skip relationship population to
+        // keep responses small (no embedded media docs in every row).
+        depth: 0,
         ...stableExtraQuery,
       })
         .then((res) => {

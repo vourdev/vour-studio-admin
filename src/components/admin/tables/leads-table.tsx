@@ -19,26 +19,30 @@ const formatDate = (value: string) =>
     minute: '2-digit',
   })
 
-const useColumns = (onRefresh: () => void): ColumnDef<Lead>[] => [
-  {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected()}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Pilih semua"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Pilih baris"
-      />
-    ),
-    enableSorting: false,
-    size: 40,
-  },
+const useColumns = (canWrite: boolean, onRefresh: () => void): ColumnDef<Lead>[] => [
+  ...(canWrite
+    ? [
+        {
+          id: 'select',
+          header: ({ table }: { table: any }) => (
+            <Checkbox
+              checked={table.getIsAllPageRowsSelected()}
+              onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+              aria-label="Pilih semua"
+            />
+          ),
+          cell: ({ row }: { row: any }) => (
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(!!value)}
+              aria-label="Pilih baris"
+            />
+          ),
+          enableSorting: false,
+          size: 40,
+        },
+      ]
+    : []),
   {
     accessorKey: 'name',
     header: 'Nama',
@@ -77,26 +81,44 @@ const useColumns = (onRefresh: () => void): ColumnDef<Lead>[] => [
         id={row.original.id}
         editHref={`/admin/leads/${row.original.id}`}
         onDeleted={onRefresh}
+        canWrite={canWrite}
       />
     ),
     size: 50,
   },
 ]
 
-export function LeadsTable() {
+export function LeadsTable({
+  canWrite = false,
+  initialData,
+  initialRowCount,
+}: {
+  canWrite?: boolean
+  initialData?: Lead[]
+  initialRowCount?: number
+}) {
   const [refreshKey, setRefreshKey] = useState(0)
-  const columns = useColumns(() => setRefreshKey((k) => k + 1))
+  // After a client-side delete the server-rendered initialData is stale — don't
+  // reseed from it on remount, fetch fresh rows instead (avoids the deleted row
+  // flashing back).
+  const [stale, setStale] = useState(false)
+  const columns = useColumns(canWrite, () => {
+    setStale(true)
+    setRefreshKey((k) => k + 1)
+  })
 
   return (
     <CollectionList<Lead>
       key={refreshKey}
       collection="leads"
+      initialData={stale ? undefined : initialData}
+      initialRowCount={stale ? undefined : initialRowCount}
       columns={columns}
       searchFields={['name', 'email', 'message', 'whatsapp']}
       defaultSort="-createdAt"
       searchPlaceholder="Cari lead…"
       emptyMessage="Belum ada leads."
-      enableBulkDelete
+      enableBulkDelete={canWrite}
     />
   )
 }

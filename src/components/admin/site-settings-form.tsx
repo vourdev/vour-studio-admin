@@ -15,7 +15,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 type SocialRow = { label: string; href: string; icon: 'github' | 'linkedin' | 'instagram' | 'tiktok' }
 type NavRow = { label: string; href: string }
 
-export function SiteSettingsForm({ settings }: { settings: SiteSetting }) {
+export function SiteSettingsForm({
+  settings,
+  canWrite = false,
+}: {
+  settings: SiteSetting
+  canWrite?: boolean
+}) {
   const [contact, setContact] = useState({
     whatsappNumber: settings.contact?.whatsappNumber ?? '',
     phoneNumber: settings.contact?.phoneNumber ?? '',
@@ -58,6 +64,7 @@ export function SiteSettingsForm({ settings }: { settings: SiteSetting }) {
             <Input
               id="whatsapp"
               value={contact.whatsappNumber}
+              disabled={!canWrite}
               onChange={(e) => setContact((prev) => ({ ...prev, whatsappNumber: e.target.value }))}
               placeholder="6287787388296"
             />
@@ -67,6 +74,7 @@ export function SiteSettingsForm({ settings }: { settings: SiteSetting }) {
             <Input
               id="phone"
               value={contact.phoneNumber}
+              disabled={!canWrite}
               onChange={(e) => setContact((prev) => ({ ...prev, phoneNumber: e.target.value }))}
               placeholder="087787388296"
             />
@@ -77,6 +85,7 @@ export function SiteSettingsForm({ settings }: { settings: SiteSetting }) {
               id="email"
               type="email"
               value={contact.contactEmail}
+              disabled={!canWrite}
               onChange={(e) => setContact((prev) => ({ ...prev, contactEmail: e.target.value }))}
               placeholder="vour.d3v@gmail.com"
             />
@@ -96,6 +105,7 @@ export function SiteSettingsForm({ settings }: { settings: SiteSetting }) {
                 className="flex-1 basis-32"
                 placeholder="Label (mis. GitHub)"
                 value={row.label}
+                disabled={!canWrite}
                 onChange={(e) => {
                   const next = [...socials]
                   next[i] = { ...row, label: e.target.value }
@@ -106,6 +116,7 @@ export function SiteSettingsForm({ settings }: { settings: SiteSetting }) {
                 className="flex-[2] basis-48"
                 placeholder="https://github.com/vour-studio"
                 value={row.href}
+                disabled={!canWrite}
                 onChange={(e) => {
                   const next = [...socials]
                   next[i] = { ...row, href: e.target.value }
@@ -114,6 +125,7 @@ export function SiteSettingsForm({ settings }: { settings: SiteSetting }) {
               />
               <Select
                 value={row.icon}
+                disabled={!canWrite}
                 onValueChange={(v) => {
                   const next = [...socials]
                   next[i] = { ...row, icon: v as SocialRow['icon'] }
@@ -131,26 +143,30 @@ export function SiteSettingsForm({ settings }: { settings: SiteSetting }) {
                   ))}
                 </SelectContent>
               </Select>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setSocials(socials.filter((_, j) => j !== i))}
-                aria-label="Hapus"
-              >
-                <X className="size-4" />
-              </Button>
+              {canWrite && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSocials(socials.filter((_, j) => j !== i))}
+                  aria-label="Hapus"
+                >
+                  <X className="size-4" />
+                </Button>
+              )}
             </div>
           ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setSocials([...socials, { label: '', href: '', icon: 'github' }])}
-          >
-            <Plus className="size-4" />
-            Tambah media sosial
-          </Button>
+          {canWrite && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSocials([...socials, { label: '', href: '', icon: 'github' }])}
+            >
+              <Plus className="size-4" />
+              Tambah media sosial
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -166,6 +182,7 @@ export function SiteSettingsForm({ settings }: { settings: SiteSetting }) {
                 className="flex-1"
                 placeholder="Label (mis. Layanan)"
                 value={row.label}
+                disabled={!canWrite}
                 onChange={(e) => {
                   const next = [...mainNav]
                   next[i] = { ...row, label: e.target.value }
@@ -176,41 +193,52 @@ export function SiteSettingsForm({ settings }: { settings: SiteSetting }) {
                 className="flex-1"
                 placeholder="/layanan"
                 value={row.href}
+                disabled={!canWrite}
                 onChange={(e) => {
                   const next = [...mainNav]
                   next[i] = { ...row, href: e.target.value }
                   setMainNav(next)
                 }}
               />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setMainNav(mainNav.filter((_, j) => j !== i))}
-                aria-label="Hapus"
-              >
-                <X className="size-4" />
-              </Button>
+              {canWrite && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMainNav(mainNav.filter((_, j) => j !== i))}
+                  aria-label="Hapus"
+                >
+                  <X className="size-4" />
+                </Button>
+              )}
             </div>
           ))}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setMainNav([...mainNav, { label: '', href: '' }])}
-          >
-            <Plus className="size-4" />
-            Tambah menu
-          </Button>
+          {canWrite && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setMainNav([...mainNav, { label: '', href: '' }])}
+            >
+              <Plus className="size-4" />
+              Tambah menu
+            </Button>
+          )}
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-2 pb-8">
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-          Simpan Pengaturan
-        </Button>
-      </div>
+      {canWrite ? (
+        <div className="flex justify-end gap-2 pb-8">
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+            Simpan Pengaturan
+          </Button>
+        </div>
+      ) : (
+        <p className="pb-8 text-sm text-muted-foreground text-right">
+          Anda memiliki akses baca (Read-only) untuk halaman ini.
+        </p>
+      )}
     </div>
   )
 }

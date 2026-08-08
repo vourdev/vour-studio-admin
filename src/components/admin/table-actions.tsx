@@ -1,6 +1,6 @@
 'use client'
 
-import { Edit2, MoreVertical, Trash2 } from 'lucide-react'
+import { Edit2, Eye, MoreVertical, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -29,11 +29,13 @@ export function TableActions({
   id,
   editHref,
   onDeleted,
+  canWrite = true,
 }: {
   collection: string
   id: string | number
   editHref: string
   onDeleted?: () => void
+  canWrite?: boolean
 }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -64,36 +66,49 @@ export function TableActions({
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
             <Link href={editHref}>
-              <Edit2 className="size-4" />
-              Edit
+              {canWrite ? (
+                <>
+                  <Edit2 className="size-4" />
+                  Edit
+                </>
+              ) : (
+                <>
+                  <Eye className="size-4" />
+                  Lihat Detail
+                </>
+              )}
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onClick={() => setShowDeleteDialog(true)}
-          >
-            <Trash2 className="size-4" />
-            Hapus
-          </DropdownMenuItem>
+          {canWrite && (
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <Trash2 className="size-4" />
+              Hapus
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus data ini?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Data akan dihapus secara permanen.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={deleting}>
-              {deleting ? 'Menghapus…' : 'Hapus'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {canWrite && (
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Hapus data ini?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tindakan ini tidak dapat dibatalkan. Data akan dihapus secara permanen.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={deleting}>
+                {deleting ? 'Menghapus…' : 'Hapus'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </>
   )
 }

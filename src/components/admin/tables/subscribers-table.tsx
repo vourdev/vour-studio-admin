@@ -17,25 +17,29 @@ const formatDate = (value: string) =>
   })
 
 const useColumns = (canWrite: boolean, onRefresh: () => void): ColumnDef<NewsletterSubscriber>[] => [
-  {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected()}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Pilih semua"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Pilih baris"
-      />
-    ),
-    enableSorting: false,
-    size: 40,
-  },
+  ...(canWrite
+    ? [
+        {
+          id: 'select',
+          header: ({ table }: { table: any }) => (
+            <Checkbox
+              checked={table.getIsAllPageRowsSelected()}
+              onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+              aria-label="Pilih semua"
+            />
+          ),
+          cell: ({ row }: { row: any }) => (
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(!!value)}
+              aria-label="Pilih baris"
+            />
+          ),
+          enableSorting: false,
+          size: 40,
+        },
+      ]
+    : []),
   {
     accessorKey: 'email',
     header: 'Email',
@@ -58,6 +62,7 @@ const useColumns = (canWrite: boolean, onRefresh: () => void): ColumnDef<Newslet
               id={row.original.id}
               editHref={`#`}
               onDeleted={onRefresh}
+              canWrite={canWrite}
             />
           ),
           size: 50,
@@ -66,14 +71,31 @@ const useColumns = (canWrite: boolean, onRefresh: () => void): ColumnDef<Newslet
     : []),
 ]
 
-export function SubscribersTable({ canWrite = false }: { canWrite?: boolean }) {
+export function SubscribersTable({
+  canWrite = false,
+  initialData,
+  initialRowCount,
+}: {
+  canWrite?: boolean
+  initialData?: NewsletterSubscriber[]
+  initialRowCount?: number
+}) {
   const [refreshKey, setRefreshKey] = useState(0)
-  const columns = useColumns(canWrite, () => setRefreshKey((k) => k + 1))
+  // After a client-side delete the server-rendered initialData is stale — don't
+  // reseed from it on remount, fetch fresh rows instead (avoids the deleted row
+  // flashing back).
+  const [stale, setStale] = useState(false)
+  const columns = useColumns(canWrite, () => {
+    setStale(true)
+    setRefreshKey((k) => k + 1)
+  })
 
   return (
     <CollectionList<NewsletterSubscriber>
       key={refreshKey}
       collection="newsletter-subscribers"
+      initialData={stale ? undefined : initialData}
+      initialRowCount={stale ? undefined : initialRowCount}
       columns={columns}
       searchFields={['email']}
       defaultSort="-createdAt"

@@ -28,26 +28,30 @@ const formatDate = (value: string) =>
     year: 'numeric',
   })
 
-const useColumns = (onRefresh: () => void): ColumnDef<User>[] => [
-  {
-    id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        checked={table.getIsAllPageRowsSelected()}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Pilih semua"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Pilih baris"
-      />
-    ),
-    enableSorting: false,
-    size: 40,
-  },
+const useColumns = (canWrite: boolean, onRefresh: () => void): ColumnDef<User>[] => [
+  ...(canWrite
+    ? [
+        {
+          id: 'select',
+          header: ({ table }: { table: any }) => (
+            <Checkbox
+              checked={table.getIsAllPageRowsSelected()}
+              onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+              aria-label="Pilih semua"
+            />
+          ),
+          cell: ({ row }: { row: any }) => (
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={(value) => row.toggleSelected(!!value)}
+              aria-label="Pilih baris"
+            />
+          ),
+          enableSorting: false,
+          size: 40,
+        },
+      ]
+    : []),
   {
     accessorKey: 'name',
     header: 'Nama',
@@ -98,33 +102,53 @@ const useColumns = (onRefresh: () => void): ColumnDef<User>[] => [
         id={row.original.id}
         editHref={`/admin/users/${row.original.id}`}
         onDeleted={onRefresh}
+        canWrite={canWrite}
       />
     ),
     size: 50,
   },
 ]
 
-export function UsersTable() {
+export function UsersTable({
+  canWrite = true,
+  initialData,
+  initialRowCount,
+}: {
+  canWrite?: boolean
+  initialData?: User[]
+  initialRowCount?: number
+}) {
   const [refreshKey, setRefreshKey] = useState(0)
-  const columns = useColumns(() => setRefreshKey((k) => k + 1))
+  // After a client-side delete the server-rendered initialData is stale — don't
+  // reseed from it on remount, fetch fresh rows instead (avoids the deleted row
+  // flashing back).
+  const [stale, setStale] = useState(false)
+  const columns = useColumns(canWrite, () => {
+    setStale(true)
+    setRefreshKey((k) => k + 1)
+  })
 
   return (
     <CollectionList<User>
       key={refreshKey}
       collection="users"
+      initialData={stale ? undefined : initialData}
+      initialRowCount={stale ? undefined : initialRowCount}
       columns={columns}
       searchFields={['name', 'email']}
       defaultSort="email"
       searchPlaceholder="Cari pengguna…"
       emptyMessage="Belum ada pengguna."
-      enableBulkDelete
+      enableBulkDelete={canWrite}
       toolbarActions={
-        <Button asChild size="sm">
-          <Link href="/admin/users/new">
-            <Plus className="size-4" />
-            Pengguna Baru
-          </Link>
-        </Button>
+        canWrite ? (
+          <Button asChild size="sm">
+            <Link href="/admin/users/new">
+              <Plus className="size-4" />
+              Pengguna Baru
+            </Link>
+          </Button>
+        ) : null
       }
     />
   )

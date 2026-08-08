@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { getPayload } from 'payload'
 import config from '@payload-config'
 
-import { canWrite } from '@/lib/permissions'
+import { canRead, canWrite } from '@/lib/permissions'
 import { getCurrentUser } from '@/lib/get-current-user'
 import { SiteSettingsForm } from '@/components/admin/site-settings-form'
 import { PageHeader } from '@/components/admin/page-header'
@@ -15,10 +15,11 @@ export const metadata: Metadata = {
 
 export default async function SettingsPage() {
   const user = await getCurrentUser()
-  if (!canWrite(user, 'site-settings')) notFound()
+  if (!canRead(user, 'site-settings')) notFound()
 
   const payload = await getPayload({ config })
   const settings = await payload.findGlobal({ slug: 'site-settings' })
+  const canWriteSettings = canWrite(user, 'site-settings')
 
   return (
     <div>
@@ -26,7 +27,7 @@ export default async function SettingsPage() {
         title="Pengaturan Situs"
         description="Kontak, media sosial, dan menu navigasi marketing site."
       />
-      <SiteSettingsForm settings={settings} />
+      <SiteSettingsForm settings={settings} canWrite={canWriteSettings} />
     </div>
   )
 }

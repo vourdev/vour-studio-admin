@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { AlertTriangle, ArrowLeft, CloudUpload, ExternalLink, Loader2, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
@@ -11,7 +12,9 @@ import type { Post } from '@/payload-types'
 import { create, update } from '@/lib/admin-api'
 import { useAutosaveDraft } from '@/hooks/use-autosave-draft'
 import { DraftRestoreBanner } from '@/components/admin/draft-restore-banner'
-import { RichTextEditor, type RichTextValue } from '@/components/admin/rich-text-editor'
+// The Lexical editor is a large client bundle — load it lazily (client-only)
+// so the rest of the form paints and is usable first.
+import type { RichTextValue } from '@/components/admin/rich-text-editor'
 import { MediaPicker } from '@/components/admin/media-picker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,6 +22,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+
+const RichTextEditor = dynamic(
+  () => import('@/components/admin/rich-text-editor').then((m) => m.RichTextEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-48 items-center justify-center rounded-md border bg-muted/40 text-sm text-muted-foreground">
+        Memuat editor…
+      </div>
+    ),
+  },
+)
 
 const EMPTY_CONTENT: RichTextValue = {
   root: {

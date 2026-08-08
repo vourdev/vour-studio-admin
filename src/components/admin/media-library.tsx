@@ -42,14 +42,25 @@ function formatBytes(bytes?: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function MediaLibrary({ canWrite = false }: { canWrite?: boolean }) {
-  const [media, setMedia] = useState<Media[]>([])
+export function MediaLibrary({
+  canWrite = false,
+  initialMedia,
+}: {
+  canWrite?: boolean
+  /** First page rendered server-side (Local API) — shown immediately, then refreshed in the background. */
+  initialMedia?: Media[]
+}) {
+  const [media, setMedia] = useState<Media[]>(initialMedia ?? [])
   const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialMedia)
   const [uploading, setUploading] = useState(false)
   const [alt, setAlt] = useState('')
   const [preview, setPreview] = useState<Media | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  // The server already rendered the library — skip the mount fetch so visiting
+  // the page doesn't duplicate the SSR query with a REST call. Search/upload/
+  // delete still refetch as usual.
+  const skipInitialLoad = useRef(!initialMedia)
 
   const load = async () => {
     setLoading(true)
@@ -70,7 +81,11 @@ export function MediaLibrary({ canWrite = false }: { canWrite?: boolean }) {
   }
 
   useEffect(() => {
-    const timer = setTimeout(load, search ? 300 : 0)
+    if (skipInitialLoad.current) {
+      skipInitialLoad.current = false
+      return
+    }
+    const timer = setTimeout(() => void load(), search ? 300 : 0)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search])
