@@ -47,4 +47,24 @@ export const Media: CollectionConfig = {
       required: true,
     },
   ],
+  hooks: {
+    afterRead: [
+      ({ doc }) => {
+        if (doc.url && typeof doc.url === 'string' && doc.url.includes('.r2.dev/')) {
+          const parts = doc.url.split('.r2.dev/')
+          doc.url = `/api/media/file/${parts[parts.length - 1]}`
+        }
+        if (doc.sizes && typeof doc.sizes === 'object') {
+          for (const key of Object.keys(doc.sizes)) {
+            const size = doc.sizes[key]
+            if (size && size.url && typeof size.url === 'string' && size.url.includes('.r2.dev/')) {
+              const parts = size.url.split('.r2.dev/')
+              size.url = `/api/media/file/${parts[parts.length - 1]}`
+            }
+          }
+        }
+        return doc
+      },
+    ],
+  },
 }

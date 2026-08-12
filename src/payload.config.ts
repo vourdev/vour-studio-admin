@@ -64,11 +64,8 @@ export default buildConfig({
           // Files are served straight from R2's public URL, not through Payload.
           disablePayloadAccessControl: true,
           generateFileURL: ({ filename, prefix }) => {
-            // R2_ENDPOINT is only for uploads; R2_PUBLIC_URL serves the files
-            // (public r2.dev subdomain or a custom domain). R2_PUBLIC_URL must
-            // include the protocol (https://) so next/image can match it.
             const key = prefix ? `${prefix}/${filename}` : filename
-            return `${process.env.R2_PUBLIC_URL}/${key}`
+            return `/api/media/file/${key}`
           },
         },
       },
