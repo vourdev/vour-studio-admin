@@ -177,6 +177,9 @@ export function ProductForm({ product, canWrite = false }: { product?: Product; 
             </div>
             <div className="space-y-2">
               <Label>Gambar produk</Label>
+              <p className="text-xs text-muted-foreground">
+                Rekomendasi: 1280×720 piksel (rasio 16:9) agar pas dengan card di halaman produk digital.
+              </p>
               <div className="flex flex-wrap items-center gap-3">
                 <MediaPicker
                   value={data.image}

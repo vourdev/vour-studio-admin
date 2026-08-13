@@ -100,7 +100,7 @@ export const Products: CollectionConfig = {
       relationTo: 'media',
       admin: {
         position: 'sidebar',
-        description: 'Gambar produk (800×600 direkomendasikan).',
+        description: 'Gambar produk (1280×720 direkomendasikan).',
       },
     },
   ],
