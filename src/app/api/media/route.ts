@@ -41,12 +41,10 @@ export async function POST(request: Request) {
     const cleanFileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
     const buffer = Buffer.from(await file.arrayBuffer())
 
-    // 1. Get original metadata
     const originalMetadata = await sharp(buffer).metadata()
     const width = originalMetadata.width || 0
     const height = originalMetadata.height || 0
 
-    // 2. Generate sizes card (768x432) & og (1200x630) using sharp
     const cardBuffer = await sharp(buffer)
       .resize(768, 432, { fit: 'cover', position: 'center' })
       .toBuffer()
@@ -58,7 +56,6 @@ export async function POST(request: Request) {
     const cardKey = `card-${cleanFileName}`
     const ogKey = `og-${cleanFileName}`
 
-    // 3. Upload to R2 in parallel
     const bucket = process.env.R2_BUCKET || ''
     await Promise.all([
       s3.send(
@@ -87,7 +84,6 @@ export async function POST(request: Request) {
       ),
     ])
 
-    // 4. Save to database
     const [inserted] = await db
       .insert(media)
       .values({

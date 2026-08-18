@@ -7,7 +7,6 @@ import { getCurrentUser } from './get-current-user'
 import { canRead, canWrite } from './permissions'
 import { revalidateSite } from '@/hooks/revalidate-site'
 
-// Relational config mapper for complex Collections
 function extractSubFields(slug: string, body: any) {
   const result: Record<string, any> = {}
   if (slug === 'products' && 'features' in body) {
@@ -52,7 +51,6 @@ async function deleteSubFields(slug: string, parentIds: any[]) {
 }
 
 async function writeSubFields(slug: string, parentId: any, subFields: any) {
-  // First clean up existing ones
   await deleteSubFields(slug, [parentId])
 
   if (slug === 'products' && subFields.features) {
@@ -126,7 +124,6 @@ export async function fetchFullDoc(slug: string, table: any, id: any) {
   const [doc] = await db.select().from(table).where(eq(table.id, id)).limit(1)
   if (!doc) return null
 
-  // Expand associated sub-tables
   if (slug === 'products') {
     const features = await db
       .select()
@@ -214,7 +211,6 @@ export function createCrudHandlers(table: any, slug: string) {
         if (sort) {
           const isDesc = sort.startsWith('-')
           const fieldName = isDesc ? sort.substring(1) : sort
-          // map _status to status for posts table compatibility checks
           const actualField = fieldName === '_status' ? 'status' : fieldName
           if (table[actualField]) {
             orderBy = isDesc ? desc(table[actualField]) : asc(table[actualField])
@@ -358,7 +354,6 @@ export function createIdCrudHandlers(table: any, slug: string) {
         const user = await getCurrentUser()
         if (!user) return Response.json({ message: 'Unauthorized' }, { status: 401 })
 
-        // Users endpoint permission logic: editors can only update themselves
         const { id } = await params
         const docId = isNaN(Number(id)) ? id : Number(id)
         if (slug === 'users') {
@@ -380,7 +375,6 @@ export function createIdCrudHandlers(table: any, slug: string) {
 
         const subFields = extractSubFields(slug, body)
 
-        // Ignore read-only columns in payload updates
         delete body.createdAt
         delete body.updatedAt
         delete body.id

@@ -7,14 +7,6 @@ import { db } from '@/db'
 import { users, usersRoles, usersPermissions } from '@/db/schema'
 import { verifyJWT } from './auth-jwt'
 
-/**
- * Returns the authenticated user for dashboard server components (or null when
- * not logged in). The dashboard layout already redirects anonymous visitors to
- * /admin/login, so pages can rely on this returning the logged-in user.
- *
- * Wrapped in React `cache()` so layout + page (and any nested server
- * components) share a single database lookup per request.
- */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
   try {
     const cookieStore = await cookies()
