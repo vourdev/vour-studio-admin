@@ -1,7 +1,7 @@
 # Dokumentasi Database & Hubungan Tabel
 ## Vour Studio Admin Panel
 
-Proyek ini menggunakan **PostgreSQL** yang diinangi (hosted) pada platform serverless **Neon Tech**. Manajemen basis data dikelola secara deklaratif melalui ORM bawaan Payload CMS 3.x (`@payloadcms/db-postgres`) yang berbasis **Drizzle ORM** untuk pembuatan skema, migrasi, dan eksekusi kueri.
+Proyek ini menggunakan **PostgreSQL** yang diinangi (hosted) pada platform serverless **Neon Tech**. Manajemen basis data dikelola secara deklaratif menggunakan **Drizzle ORM** untuk pembuatan skema, migrasi, dan eksekusi kueri langsung.
 
 ---
 
@@ -108,21 +108,16 @@ Untuk menjaga konsistensi data, relasi antar tabel diproteksi dengan constraint 
 
 ## 4. Alur Perintah Migrasi
 
-Setiap perubahan pada konfigurasi schema Payload CMS (`src/collections/*` & `src/globals/*`) dipetakan ke database PostgreSQL menggunakan perintah berikut:
+Setiap perubahan pada konfigurasi schema Drizzle (`src/db/schema.ts`) dipetakan ke database PostgreSQL menggunakan perintah berikut:
 
-1.  **Membuat File Migrasi Baru (`Drizzle SQL`):**
+1.  **Membuat File Migrasi Baru (Drizzle Kit):**
     ```bash
     npm run db:generate
     ```
-    *Akan menghasilkan file `.ts` dan `.json` baru di direktori `src/migrations/`.*
+    *Akan menghasilkan file SQL migrasi baru di direktori `drizzle/migrations/`.*
 
 2.  **Menjalankan Migrasi ke Database:**
     ```bash
     npm run db:migrate
     ```
-    *Menerapkan perubahan DDL ke instansi Neon Tech DB.*
-
-3.  **Mengecek Status Migrasi:**
-    ```bash
-    npm run db:status
-    ```
+    *Menerapkan perubahan schema DDL ke instansi database Neon Tech.*

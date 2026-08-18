@@ -1,10 +1,9 @@
 import Link from 'next/link'
 import { Clock, History, Inbox, UserRound } from 'lucide-react'
+import { eq, ne, or, and } from 'drizzle-orm'
 
-import type { Where } from 'payload'
-import { getPayload } from 'payload'
-import config from '@payload-config'
-
+import { db } from '@/db'
+import { leads } from '@/db/schema'
 import type { Lead } from '@/payload-types'
 import { formatDateTime, formatRelative } from '@/lib/format-date'
 import { StatusBadge } from '@/components/admin/status-badge'
@@ -14,25 +13,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 /**
  * History context for a single lead. Renders a timeline of this lead's own
  * lifecycle (received → last updated → current status) plus every other lead
- * that came from the same email or WhatsApp number, so the admin can see at a
- * glance whether this contact has reached out before and how it went.
+ * that came from the same email or WhatsApp number.
  *
  * Read-only — no schema changes, purely derived from existing data.
  */
 export async function LeadHistory({ lead }: { lead: Lead }) {
-  const payload = await getPayload({ config })
+  const matchConditions = [eq(leads.email, lead.email)]
+  if (lead.whatsapp) {
+    matchConditions.push(eq(leads.whatsapp, lead.whatsapp))
+  }
 
-  const or: Where[] = [{ email: { equals: lead.email } }]
-  if (lead.whatsapp) or.push({ whatsapp: { equals: lead.whatsapp } })
-
-  const { docs } = await payload.find({
-    collection: 'leads',
-    where: { and: [{ or }, { id: { not_equals: lead.id } }] },
-    sort: 'createdAt',
-    limit: 50,
-  })
-
-  const related = docs
+  const related = (await db
+    .select()
+    .from(leads)
+    .where(and(ne(leads.id, lead.id), or(...matchConditions)))
+    .orderBy(leads.createdAt)
+    .limit(50)) as any[]
 
   return (
     <Card>
@@ -72,7 +68,7 @@ export async function LeadHistory({ lead }: { lead: Lead }) {
               <span className="absolute -left-[25px] top-1 size-2.5 rounded-full border border-muted-foreground bg-background" />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">Status saat ini</p>
-                <StatusBadge status={lead.status} type="lead" />
+                <StatusBadge status={lead.status as any} type="lead" />
               </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 Terakhir diperbarui {formatRelative(lead.updatedAt)}.

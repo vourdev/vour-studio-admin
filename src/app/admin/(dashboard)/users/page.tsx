@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
-import { getPayload } from 'payload'
-import config from '@payload-config'
-
 import { getCurrentUser } from '@/lib/get-current-user'
 import { UsersTable } from '@/components/admin/tables/users-table'
 import { PageHeader } from '@/components/admin/page-header'
@@ -14,29 +11,16 @@ export const metadata: Metadata = {
 }
 
 export default async function UsersPage() {
-  // Only admins manage users — mirrors Users.access.read = admins.
   const user = await getCurrentUser()
-  if (!user?.roles?.includes('admin')) notFound()
-
-  const payload = await getPayload({ config })
-  const initial = await payload.find({
-    collection: 'users',
-    limit: 10,
-    sort: 'email',
-    depth: 0,
-  })
+  const isAdmin = user?.roles?.includes('admin')
+  if (!isAdmin) notFound()
 
   return (
     <div>
       <PageHeader title="Users" description="Kelola akses admin panel." />
       <Card>
         <CardContent className="pt-6">
-          {/* Only admins reach this page, so they always can write users. */}
-          <UsersTable
-            canWrite
-            initialData={initial.docs}
-            initialRowCount={initial.totalDocs}
-          />
+          <UsersTable canWrite={isAdmin} />
         </CardContent>
       </Card>
     </div>

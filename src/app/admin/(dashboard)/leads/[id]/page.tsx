@@ -3,9 +3,6 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Mail, MessageSquare, Phone } from 'lucide-react'
 
-import { getPayload } from 'payload'
-import config from '@payload-config'
-
 import { canRead, canWrite } from '@/lib/permissions'
 import { getCurrentUser } from '@/lib/get-current-user'
 import { LeadStatusForm } from '@/components/admin/lead-status-form'
@@ -14,6 +11,8 @@ import { LeadReplyCard } from '@/components/admin/lead-reply-card'
 import { LeadHistory } from '@/components/admin/lead-history'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { fetchFullDoc } from '@/lib/crud'
+import { leads } from '@/db/schema'
 
 export const metadata: Metadata = {
   title: 'Detail Lead — Vour Studio Admin',
@@ -24,8 +23,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const user = await getCurrentUser()
   if (!canRead(user, 'leads')) notFound()
 
-  const payload = await getPayload({ config })
-  const lead = await payload.findByID({ collection: 'leads', id }).catch(() => null)
+  const lead = (await fetchFullDoc('leads', leads, isNaN(Number(id)) ? id : Number(id))) as any
   if (!lead) notFound()
 
   const write = canWrite(user, 'leads')

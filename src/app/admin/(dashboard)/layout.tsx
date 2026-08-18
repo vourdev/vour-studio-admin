@@ -1,9 +1,6 @@
 import { redirect } from 'next/navigation'
 
-import { getPayload } from 'payload'
-import config from '@payload-config'
-import { headers } from 'next/headers'
-
+import { getCurrentUser } from '@/lib/get-current-user'
 import { AppSidebar } from '@/components/admin/app-sidebar'
 import { ThemeToggle } from '@/components/admin/theme-toggle'
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
@@ -15,8 +12,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const payload = await getPayload({ config })
-  const { user } = await payload.auth({ headers: await headers() })
+  const user = await getCurrentUser()
 
   if (!user) redirect('/admin/login')
 

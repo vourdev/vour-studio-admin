@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { eq } from 'drizzle-orm'
 
-import { getPayload } from 'payload'
-import config from '@payload-config'
-
+import { db } from '@/db'
+import { payloadKv } from '@/db/schema'
 import { canRead, canWrite } from '@/lib/permissions'
 import { getCurrentUser } from '@/lib/get-current-user'
 import { SiteSettingsForm } from '@/components/admin/site-settings-form'
@@ -17,8 +17,13 @@ export default async function SettingsPage() {
   const user = await getCurrentUser()
   if (!canRead(user, 'site-settings')) notFound()
 
-  const payload = await getPayload({ config })
-  const settings = await payload.findGlobal({ slug: 'site-settings' })
+  const [record] = await db
+    .select()
+    .from(payloadKv)
+    .where(eq(payloadKv.key, 'site-settings'))
+    .limit(1)
+
+  const settings = (record?.data || {}) as any
   const canWriteSettings = canWrite(user, 'site-settings')
 
   return (

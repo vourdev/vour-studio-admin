@@ -1,12 +1,11 @@
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { Suspense } from 'react'
+import { count, desc } from 'drizzle-orm'
 
 import type { User } from '@/payload-types'
-
-import { getPayload } from 'payload'
-import config from '@payload-config'
-
+import { db } from '@/db'
+import { posts, products, projects, media, leads } from '@/db/schema'
 import { canRead, canWrite, type PermissionCollection } from '@/lib/permissions'
 import { getCurrentUser } from '@/lib/get-current-user'
 import { StatusBadge } from '@/components/admin/status-badge'
@@ -23,7 +22,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-// Only collection slugs (globals like site-settings are not countable here).
 type DashboardCollection = Exclude<PermissionCollection, 'site-settings'>
 
 const statCards: { label: string; href: string; collection: DashboardCollection }[] = [
@@ -33,6 +31,14 @@ const statCards: { label: string; href: string; collection: DashboardCollection 
   { label: 'Media', href: '/admin/media', collection: 'media' },
   { label: 'Leads', href: '/admin/leads', collection: 'leads' },
 ]
+
+const tablesMap: Record<string, any> = {
+  posts,
+  products,
+  projects,
+  media,
+  leads,
+}
 
 function StatsSkeleton() {
   return (
@@ -50,14 +56,13 @@ function StatsSkeleton() {
 }
 
 async function DashboardStats({ user }: { user: User | null }) {
-  const payload = await getPayload({ config })
-
   const visibleCards = statCards.filter(({ collection }) => canRead(user, collection))
 
   const counts = await Promise.all(
     visibleCards.map(async ({ href, label, collection }) => {
-      const { totalDocs } = await payload.count({ collection })
-      return { label, href, total: totalDocs }
+      const table = tablesMap[collection]
+      const [res] = await db.select({ total: count() }).from(table)
+      return { label, href, total: res.total }
     }),
   )
 
@@ -100,12 +105,11 @@ function RecentLeadsSkeleton() {
 async function RecentLeads({ user }: { user: User | null }) {
   if (!canRead(user, 'leads')) return null
 
-  const payload = await getPayload({ config })
-  const { docs: recentLeads } = await payload.find({
-    collection: 'leads',
-    limit: 6,
-    sort: '-createdAt',
-  })
+  const recentLeads = await db
+    .select()
+    .from(leads)
+    .orderBy(desc(leads.createdAt))
+    .limit(6)
 
   return (
     <Card className="mt-6">
@@ -134,7 +138,7 @@ async function RecentLeads({ user }: { user: User | null }) {
                   <TableCell>{lead.email}</TableCell>
                   <TableCell>{lead.sourcePage}</TableCell>
                   <TableCell>
-                    <StatusBadge status={lead.status} type="lead" />
+                    <StatusBadge status={lead.status as any} type="lead" />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {new Date(lead.createdAt).toLocaleDateString('id-ID', {

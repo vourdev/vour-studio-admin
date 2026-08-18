@@ -1,6 +1,9 @@
 import 'dotenv/config'
-import { getPayload } from 'payload'
-import config from '@payload-config'
+import { eq } from 'drizzle-orm'
+import bcrypt from 'bcryptjs'
+
+import { db } from '../src/db'
+import { users, usersRoles } from '../src/db/schema'
 
 /**
  * One-off script: create the first admin user.
@@ -15,27 +18,35 @@ async function createAdmin() {
     process.exit(1)
   }
 
-  const payload = await getPayload({ config })
+  const [existing] = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email.toLowerCase().trim()))
+    .limit(1)
 
-  const existing = await payload.find({
-    collection: 'users',
-    where: { email: { equals: email } },
-  })
-
-  if (existing.docs.length > 0) {
-    console.log(`User ${email} sudah ada (id=${existing.docs[0].id}). Melewatkan.`)
+  if (existing) {
+    console.log(`User ${email} sudah ada (id=${existing.id}). Melewatkan.`)
     process.exit(0)
   }
 
-  await payload.create({
-    collection: 'users',
-    data: {
-      email,
-      password,
+  const hash = bcrypt.hashSync(password, 10)
+
+  const [inserted] = await db
+    .insert(users)
+    .values({
+      email: email.toLowerCase().trim(),
+      hash,
       name: 'Vour Admin',
-      roles: ['admin'],
-    },
-  })
+    })
+    .returning()
+
+  if (inserted) {
+    await db.insert(usersRoles).values({
+      order: 1,
+      parentId: inserted.id,
+      value: 'admin',
+    })
+  }
 
   console.log(`Admin user dibuat: ${email}`)
   process.exit(0)
