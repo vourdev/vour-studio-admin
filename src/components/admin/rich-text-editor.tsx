@@ -23,12 +23,17 @@ import {
   REDO_COMMAND,
   UNDO_COMMAND,
   type EditorState,
-  type ElementNode,
+  ElementNode,
   type LexicalEditor,
-  type LexicalNode,
+  LexicalNode,
   type RangeSelection,
   type TextFormatType,
+  type NodeKey,
+  type EditorConfig,
+  type SerializedElementNode,
+  type Spread,
 } from 'lexical'
+
 import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text'
 import {
   INSERT_ORDERED_LIST_COMMAND,
@@ -38,18 +43,140 @@ import {
 } from '@lexical/list'
 import { CodeHighlightNode, CodeNode } from '@lexical/code'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
-// Payload's own link node classes. They read/write the `fields` object
-// (e.g. `fields.url`) that Payload's richtext-lexical stores in the database,
-// instead of the plain `@lexical/link` format that expects a top-level `url`.
-// Using the plain classes on Payload content crashes with
-// "Cannot read properties of undefined (reading 'match')" because the URL is
-// `undefined`, which then cascades into "Unable to find an active editor state".
-import {
-  $createLinkNode,
-  $isLinkNode,
-  AutoLinkNode,
-  LinkNode,
-} from '@payloadcms/richtext-lexical/client'
+
+type LinkFields = {
+  url?: string
+  newTab: boolean
+  linkType: 'custom' | 'internal'
+}
+
+type SerializedLinkNode = Spread<
+  {
+    fields: LinkFields
+  },
+  SerializedElementNode
+>
+
+export class LinkNode extends ElementNode {
+  __fields: LinkFields
+
+  static getType(): string {
+    return 'link'
+  }
+
+  static clone(node: LinkNode): LinkNode {
+    return new LinkNode(node.__fields, node.__key)
+  }
+
+  constructor(fields: LinkFields, key?: NodeKey) {
+    super(key)
+    this.__fields = fields
+  }
+
+  createDOM(config: EditorConfig): HTMLElement {
+    const element = document.createElement('a')
+    element.href = this.__fields.url || ''
+    if (this.__fields.newTab) {
+      element.target = '_blank'
+      element.rel = 'noopener noreferrer'
+    }
+    element.className = 'text-primary underline cursor-pointer'
+    return element
+  }
+
+  updateDOM(prevNode: LinkNode, anchor: HTMLAnchorElement, config: EditorConfig): boolean {
+    const fields = this.__fields
+    const prevFields = prevNode.__fields
+    if (fields.url !== prevFields.url) {
+      anchor.href = fields.url || ''
+    }
+    if (fields.newTab !== prevFields.newTab) {
+      if (fields.newTab) {
+        anchor.target = '_blank'
+        anchor.rel = 'noopener noreferrer'
+      } else {
+        anchor.removeAttribute('target')
+        anchor.removeAttribute('rel')
+      }
+    }
+    return false
+  }
+
+  static importJSON(serializedNode: SerializedLinkNode): LinkNode {
+    const node = $createLinkNode({
+      fields: serializedNode.fields || { url: '', newTab: false, linkType: 'custom' },
+    })
+    return node
+  }
+
+  exportJSON(): SerializedLinkNode {
+    return {
+      ...super.exportJSON(),
+      type: 'link',
+      fields: this.__fields,
+      version: 1,
+    }
+  }
+
+  getFields(): LinkFields {
+    return this.getLatest().__fields
+  }
+
+  setFields(fields: LinkFields): void {
+    const writable = this.getWritable()
+    writable.__fields = fields
+  }
+
+  insertNewAfter(selection: any, restoreSelection = true): null | ElementNode {
+    const element = this.getParentOrThrow().insertNewAfter(selection, restoreSelection)
+    return element as ElementNode | null
+  }
+
+  canBeEmpty(): boolean {
+    return false
+  }
+}
+
+export function $createLinkNode(args: { fields: LinkFields }): LinkNode {
+  return new LinkNode(args.fields)
+}
+
+export function $isLinkNode(node: LexicalNode | null | undefined): node is LinkNode {
+  return node instanceof LinkNode
+}
+
+export class AutoLinkNode extends LinkNode {
+  static getType(): string {
+    return 'autolink'
+  }
+
+  static clone(node: AutoLinkNode): AutoLinkNode {
+    return new AutoLinkNode(node.__fields, node.__key)
+  }
+
+  static importJSON(serializedNode: SerializedLinkNode): AutoLinkNode {
+    const node = $createAutoLinkNode(
+      serializedNode.fields || { url: '', newTab: false, linkType: 'custom' }
+    )
+    return node
+  }
+
+  exportJSON(): SerializedLinkNode {
+    return {
+      ...super.exportJSON(),
+      type: 'autolink',
+      version: 1,
+    }
+  }
+}
+
+export function $createAutoLinkNode(fields: LinkFields): AutoLinkNode {
+  return new AutoLinkNode(fields)
+}
+
+export function $isAutoLinkNode(node: LexicalNode | null | undefined): node is AutoLinkNode {
+  return node instanceof AutoLinkNode
+}
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { ListPlugin } from '@lexical/react/LexicalListPlugin'
@@ -97,12 +224,6 @@ const EDITOR_NODES = [
   CodeNode,
   CodeHighlightNode,
 ]
-
-type LinkFields = {
-  url?: string
-  newTab: boolean
-  linkType: 'custom' | 'internal'
-}
 
 function ToolbarButton({
   onClick,
