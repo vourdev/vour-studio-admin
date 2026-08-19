@@ -25,7 +25,8 @@
     "test": "npm run test:int && npm run test:e2e",
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --import=tsx/esm\" playwright test --config=playwright.config.ts",
     "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
-    "fix:listitem-indent": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/fix-listitem-indent.ts"
+    "fix:listitem-indent": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/fix-listitem-indent.ts",
+    "reset:password": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/reset-password.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1112.0",

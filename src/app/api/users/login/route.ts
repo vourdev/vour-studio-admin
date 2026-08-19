@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs'
 import { db } from '@/db'
 import { users, usersRoles, usersPermissions } from '@/db/schema'
 import { signJWT } from '@/lib/auth-jwt'
+import { isBcryptHash, verifyLegacyPassword } from '@/lib/legacy-password'
 
 export async function POST(request: Request) {
   try {
@@ -23,7 +24,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Email atau password salah.' }, { status: 401 })
     }
 
-    const isValid = bcrypt.compareSync(password, userRecord.hash)
+    let isValid: boolean
+
+    if (isBcryptHash(userRecord.hash)) {
+      isValid = bcrypt.compareSync(password, userRecord.hash)
+    } else if (userRecord.salt) {
+      // Account predates the Drizzle migration and still carries a Payload
+      // PBKDF2 hash. Verify against the old scheme, then rewrite it as bcrypt
+      // so each account converts on its owner's next login.
+      isValid = await verifyLegacyPassword(password, userRecord.salt, userRecord.hash)
+
+      if (isValid) {
+        await db
+          .update(users)
+          .set({ hash: bcrypt.hashSync(password, 10), salt: null })
+          .where(eq(users.id, userRecord.id))
+      }
+    } else {
+      isValid = false
+    }
+
     if (!isValid) {
       return NextResponse.json({ message: 'Email atau password salah.' }, { status: 401 })
     }
