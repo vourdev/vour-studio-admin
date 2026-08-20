@@ -104,7 +104,7 @@ export const products = pgTable('products', {
 })
 
 export const productsFeatures = pgTable('products_features', {
-  id: serial('id').primaryKey(),
+  id: varchar('id').primaryKey(),
   order: integer('_order').notNull(),
   parentId: integer('_parent_id').notNull(),
   feature: varchar('feature').notNull(),
@@ -122,10 +122,10 @@ export const projects = pgTable('projects', {
 })
 
 export const projectsTechnology = pgTable('projects_technology', {
-  id: serial('id').primaryKey(),
+  id: varchar('id').primaryKey(),
   order: integer('_order').notNull(),
   parentId: integer('_parent_id').notNull(),
-  technology: varchar('technology').notNull(),
+  technology: varchar('tech').notNull(),
 })
 
 export const leads = pgTable('leads', {

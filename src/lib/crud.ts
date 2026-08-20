@@ -56,6 +56,7 @@ async function writeSubFields(slug: string, parentId: any, subFields: any) {
   if (slug === 'products' && subFields.features) {
     const list = Array.isArray(subFields.features) ? subFields.features : []
     const values = list.map((item: any, index: number) => ({
+      id: `${parentId}_feat_${index}_${Math.random().toString(36).substr(2, 4)}`,
       order: index + 1,
       parentId,
       feature: typeof item === 'object' ? item.feature : String(item),
@@ -68,6 +69,7 @@ async function writeSubFields(slug: string, parentId: any, subFields: any) {
   if (slug === 'projects' && subFields.technology) {
     const list = Array.isArray(subFields.technology) ? subFields.technology : []
     const values = list.map((item: any, index: number) => ({
+      id: `${parentId}_tech_${index}_${Math.random().toString(36).substr(2, 4)}`,
       order: index + 1,
       parentId,
       technology: typeof item === 'object' ? item.technology : String(item),
