@@ -12,12 +12,15 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const user = await getCurrentUser()
-    if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
-
     const { slug } = await params
-    if (!canRead(user, slug as any)) {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
+
+    if (slug !== 'site-settings') {
+      const user = await getCurrentUser()
+      if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+
+      if (!canRead(user, slug as any)) {
+        return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
+      }
     }
 
     const [record] = await db

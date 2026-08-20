@@ -1,4 +1,4 @@
-import { eq, desc, asc, or, ilike, inArray, count } from 'drizzle-orm'
+import { eq, desc, asc, or, and, ilike, inArray, count } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 
 import { db } from '@/db'
@@ -124,13 +124,56 @@ export async function fetchFullDoc(slug: string, table: any, id: any) {
   const [doc] = await db.select().from(table).where(eq(table.id, id)).limit(1)
   if (!doc) return null
 
+  const hydratedDoc = { ...doc } as any
+
+  if ('imageId' in doc) {
+    hydratedDoc.image = null
+    if (doc.imageId) {
+      const [mediaDoc] = await db
+        .select()
+        .from(schema.media)
+        .where(eq(schema.media.id, doc.imageId))
+        .limit(1)
+      if (mediaDoc) {
+        hydratedDoc.image = {
+          id: mediaDoc.id,
+          alt: mediaDoc.alt,
+          url: mediaDoc.url,
+          filename: mediaDoc.filename,
+          mimeType: mediaDoc.mimeType,
+          filesize: mediaDoc.filesize,
+          width: mediaDoc.width,
+          height: mediaDoc.height,
+          sizes: {
+            card: {
+              url: mediaDoc.sizesCardUrl,
+              filename: mediaDoc.sizesCardFilename,
+              width: mediaDoc.sizesCardWidth,
+              height: mediaDoc.sizesCardHeight,
+              mimeType: mediaDoc.sizesCardMimeType,
+              filesize: mediaDoc.sizesCardFilesize,
+            },
+            og: {
+              url: mediaDoc.sizesOgUrl,
+              filename: mediaDoc.sizesOgFilename,
+              width: mediaDoc.sizesOgWidth,
+              height: mediaDoc.sizesOgHeight,
+              mimeType: mediaDoc.sizesOgMimeType,
+              filesize: mediaDoc.sizesOgFilesize,
+            }
+          }
+        }
+      }
+    }
+  }
+
   if (slug === 'products') {
     const features = await db
       .select()
       .from(schema.productsFeatures)
       .where(eq(schema.productsFeatures.parentId, id))
       .orderBy(asc(schema.productsFeatures.order))
-    return { ...doc, features }
+    return { ...hydratedDoc, features }
   }
 
   if (slug === 'projects') {
@@ -139,7 +182,7 @@ export async function fetchFullDoc(slug: string, table: any, id: any) {
       .from(schema.projectsTechnology)
       .where(eq(schema.projectsTechnology.parentId, id))
       .orderBy(asc(schema.projectsTechnology.order))
-    return { ...doc, technology }
+    return { ...hydratedDoc, technology }
   }
 
   if (slug === 'posts') {
@@ -148,7 +191,7 @@ export async function fetchFullDoc(slug: string, table: any, id: any) {
       .from(schema.postsRelated)
       .where(eq(schema.postsRelated.parentId, id))
       .orderBy(asc(schema.postsRelated.order))
-    return { ...doc, related }
+    return { ...hydratedDoc, related }
   }
 
   if (slug === 'users') {
@@ -163,7 +206,7 @@ export async function fetchFullDoc(slug: string, table: any, id: any) {
       .where(eq(schema.usersRoles.parentId, id))
       .orderBy(asc(schema.usersRoles.order))
     return {
-      ...doc,
+      ...hydratedDoc,
       permissions: permissions.map((p) => ({
         collection: p.collection,
         canRead: p.canRead,
@@ -173,7 +216,7 @@ export async function fetchFullDoc(slug: string, table: any, id: any) {
     }
   }
 
-  return doc
+  return hydratedDoc
 }
 
 export function createCrudHandlers(table: any, slug: string) {
@@ -181,8 +224,14 @@ export function createCrudHandlers(table: any, slug: string) {
     async GET(request: Request) {
       try {
         const user = await getCurrentUser()
-        if (!user) return Response.json({ message: 'Unauthorized' }, { status: 401 })
-        if (!canRead(user, slug as any)) return Response.json({ message: 'Forbidden' }, { status: 403 })
+        const isPublicRoute = ['products', 'projects', 'posts'].includes(slug)
+
+        if (!user && !isPublicRoute) {
+          return Response.json({ message: 'Unauthorized' }, { status: 401 })
+        }
+        if (user && !canRead(user, slug as any)) {
+          return Response.json({ message: 'Forbidden' }, { status: 403 })
+        }
 
         const { searchParams } = new URL(request.url)
         const page = Math.max(1, Number(searchParams.get('page') || '1'))
@@ -205,6 +254,12 @@ export function createCrudHandlers(table: any, slug: string) {
               queryFilter = inArray(table.id, parsed.id.in)
             }
           } catch {}
+        }
+
+        // Anonymous users can only see published posts
+        if (slug === 'posts' && !user) {
+          const publishedCondition = eq(table.status, 'published')
+          queryFilter = queryFilter ? and(queryFilter, publishedCondition) : publishedCondition
         }
 
         let orderBy: any = undefined
@@ -273,6 +328,11 @@ export function createCrudHandlers(table: any, slug: string) {
           delete body.password
         }
 
+        if ('image' in body) {
+          body.imageId = body.image
+          delete body.image
+        }
+
         const subFields = extractSubFields(slug, body)
 
         const [inserted] = (await db.insert(table).values(body).returning()) as any[]
@@ -334,13 +394,24 @@ export function createIdCrudHandlers(table: any, slug: string) {
     async GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
       try {
         const user = await getCurrentUser()
-        if (!user) return Response.json({ message: 'Unauthorized' }, { status: 401 })
-        if (!canRead(user, slug as any)) return Response.json({ message: 'Forbidden' }, { status: 403 })
+        const isPublicRoute = ['products', 'projects', 'posts'].includes(slug)
+
+        if (!user && !isPublicRoute) {
+          return Response.json({ message: 'Unauthorized' }, { status: 401 })
+        }
+        if (user && !canRead(user, slug as any)) {
+          return Response.json({ message: 'Forbidden' }, { status: 403 })
+        }
 
         const { id } = await params
         const finalDoc = await fetchFullDoc(slug, table, isNaN(Number(id)) ? id : Number(id))
         if (!finalDoc) {
           return Response.json({ message: 'Data tidak ditemukan.' }, { status: 404 })
+        }
+
+        // Anonymous users cannot view draft posts
+        if (slug === 'posts' && !user && finalDoc.status !== 'published') {
+          return Response.json({ message: 'Unauthorized' }, { status: 401 })
         }
 
         return Response.json(finalDoc)
@@ -371,6 +442,11 @@ export function createIdCrudHandlers(table: any, slug: string) {
             body.hash = bcrypt.hashSync(body.password, 10)
           }
           delete body.password
+        }
+
+        if ('image' in body) {
+          body.imageId = body.image
+          delete body.image
         }
 
         const subFields = extractSubFields(slug, body)
