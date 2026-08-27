@@ -2,14 +2,16 @@
 
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { AlertTriangle, ArrowLeft, CloudUpload, ExternalLink, Loader2, X } from 'lucide-react'
-import { useState } from 'react'
+import { AlertTriangle, ArrowLeft, BookOpen, CloudUpload, ExternalLink, Loader2, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/admin/status-badge'
 
 import type { Post } from '@/payload-types'
-import { create, update } from '@/lib/admin-api'
+import { create, update, find } from '@/lib/admin-api'
 import { useAutosaveDraft } from '@/hooks/use-autosave-draft'
 import { DraftRestoreBanner } from '@/components/admin/draft-restore-banner'
 // The Lexical editor is a large client bundle — load it lazily (client-only)
@@ -57,6 +59,15 @@ const EMPTY_CONTENT: RichTextValue = {
   },
 }
 
+export type RelatedPostItem = {
+  id: number
+  title: string
+  slug?: string
+  category?: string
+  status?: string
+  _status?: string
+}
+
 type PostDraft = {
   title: string
   slug: string
@@ -66,7 +77,7 @@ type PostDraft = {
   readingMinutes: number
   image: number | null
   content: RichTextValue
-  related: { label: string; href: string }[]
+  related: RelatedPostItem[]
 }
 
 export function PostForm({
@@ -81,6 +92,27 @@ export function PostForm({
   const router = useRouter()
   const isEdit = Boolean(post)
 
+  const [allPosts, setAllPosts] = useState<Post[]>([])
+  const [loadingPosts, setLoadingPosts] = useState(false)
+
+  useEffect(() => {
+    let mounted = true
+    setLoadingPosts(true)
+    find<Post>('posts', { limit: 100, sort: '-date' })
+      .then((res) => {
+        if (mounted && res?.docs) {
+          setAllPosts(res.docs)
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setLoadingPosts(false)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   const [data, setData] = useState<PostDraft>({
     title: post?.title ?? '',
     slug: post?.slug ?? '',
@@ -92,7 +124,17 @@ export function PostForm({
     readingMinutes: post?.readingMinutes ?? 5,
     image: post?.image && typeof post.image !== 'number' ? post.image.id : (post?.image as number | null) ?? null,
     content: post?.content ?? EMPTY_CONTENT,
-    related: post?.related?.map(({ label, href }) => ({ label, href })) ?? [],
+    related:
+      post?.related
+        ?.map((item) => ({
+          id: Number(item.id || item.relatedPostId || 0),
+          title: item.title || item.label || '',
+          slug: item.slug || '',
+          category: item.category || undefined,
+          status: item.status || item._status || undefined,
+          _status: item._status || item.status || undefined,
+        }))
+        .filter((item) => item.id > 0) ?? [],
   })
   const [saving, setSaving] = useState(false)
 
@@ -115,6 +157,25 @@ export function PostForm({
       .replace(/[^\w-]+/g, '')
       .toLowerCase()
 
+  const handleAddRelated = (selectedIdStr: string) => {
+    if (!selectedIdStr) return
+    const id = Number(selectedIdStr)
+    const found = allPosts.find((p) => p.id === id)
+    if (found && data.related.length < 5) {
+      set('related', [
+        ...data.related,
+        {
+          id: found.id,
+          title: found.title || `Artikel #${found.id}`,
+          slug: found.slug || '',
+          category: found.category || undefined,
+          status: found._status || undefined,
+          _status: found._status || undefined,
+        },
+      ])
+    }
+  }
+
   const handleSave = async (targetStatus: 'draft' | 'published') => {
     setSaving(true)
     try {
@@ -122,7 +183,14 @@ export function PostForm({
         ...data,
         image: data.image ?? null,
         content: data.content,
-        related: data.related.map((row) => ({ ...row })) || null,
+        related:
+          data.related.map((row) => ({
+            id: row.id,
+            relatedPostId: row.id,
+            title: row.title,
+            slug: row.slug,
+            category: row.category,
+          })) || null,
         date: data.date ? new Date(data.date).toISOString() : undefined,
         _status: targetStatus,
       }
@@ -300,54 +368,126 @@ export function PostForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Tautan terkait</CardTitle>
-            <CardDescription>Tautan internal ke layanan atau produk terkait.</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <BookOpen className="size-4 text-primary" />
+                  Artikel Terkait
+                </CardTitle>
+                <CardDescription>
+                  Pilih artikel dalam kategori yang sama (<strong>{data.category}</strong>) untuk direferensikan sebagai bacaan terkait.
+                </CardDescription>
+              </div>
+              <Badge variant="secondary" className="text-xs">
+                {data.related.length} / 5 dipilih
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {data.related.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Belum ada tautan terkait.</p>
+              <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                Belum ada artikel terkait yang dipilih.
+              </div>
             ) : (
-              data.related.map((row, i) => (
-                <div key={i} className="flex gap-2">
-                  <Input
-                    value={row.label}
-                    placeholder="Label (mis. Layanan Desain)"
-                    onChange={(e) => {
-                      const next = [...data.related]
-                      next[i] = { ...row, label: e.target.value }
-                      set('related', next)
-                    }}
-                  />
-                  <Input
-                    value={row.href}
-                    placeholder="/layanan/desain"
-                    onChange={(e) => {
-                      const next = [...data.related]
-                      next[i] = { ...row, href: e.target.value }
-                      set('related', next)
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => set('related', data.related.filter((_, j) => j !== i))}
-                    aria-label="Hapus tautan"
+              <div className="space-y-2">
+                {data.related.map((row, i) => (
+                  <div
+                    key={row.id || i}
+                    className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3 shadow-xs transition-colors hover:border-primary/40"
                   >
-                    <X className="size-4" />
-                  </Button>
-                </div>
-              ))
+                    <div className="flex flex-1 items-center gap-3 overflow-hidden">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium leading-none">
+                          {row.title}
+                        </p>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          {row.category ? (
+                            <Badge variant="outline" className="text-[10px] font-normal">
+                              {row.category}
+                            </Badge>
+                          ) : null}
+                          {row.status || row._status ? (
+                            <StatusBadge status={(row.status || row._status || 'published') as any} />
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => set('related', data.related.filter((_, j) => j !== i))}
+                      aria-label="Hapus artikel terkait"
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             )}
+
             {data.related.length < 5 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => set('related', [...data.related, { label: '', href: '' }])}
-              >
-                Tambah tautan
-              </Button>
+              <div className="pt-1">
+                {loadingPosts ? (
+                  <p className="text-xs text-muted-foreground">Memuat daftar artikel…</p>
+                ) : allPosts.filter((p) => p.id !== post?.id && !data.related.some((r) => r.id === p.id)).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Tidak ada artikel lain yang tersedia untuk dipilih.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <Select onValueChange={handleAddRelated} value="">
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="+ Tambah artikel terkait..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {allPosts
+                          .filter((p) => p.id !== post?.id && !data.related.some((r) => r.id === p.id) && p.category === data.category)
+                          .length > 0 && (
+                          <>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                              Kategori Sama ({data.category})
+                            </div>
+                            {allPosts
+                              .filter((p) => p.id !== post?.id && !data.related.some((r) => r.id === p.id) && p.category === data.category)
+                              .map((p) => (
+                                <SelectItem key={p.id} value={String(p.id)}>
+                                  {p.title}
+                                </SelectItem>
+                              ))}
+                          </>
+                        )}
+                        {allPosts
+                          .filter((p) => p.id !== post?.id && !data.related.some((r) => r.id === p.id) && p.category !== data.category)
+                          .length > 0 && (
+                          <>
+                            <div className="mt-1 border-t px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                              Kategori Lain
+                            </div>
+                            {allPosts
+                              .filter((p) => p.id !== post?.id && !data.related.some((r) => r.id === p.id) && p.category !== data.category)
+                              .map((p) => (
+                                <SelectItem key={p.id} value={String(p.id)}>
+                                  [{p.category}] {p.title}
+                                </SelectItem>
+                              ))}
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {allPosts.filter((p) => p.id !== post?.id && !data.related.some((r) => r.id === p.id) && p.category === data.category).length === 0 &&
+                      allPosts.filter((p) => p.id !== post?.id && !data.related.some((r) => r.id === p.id) && p.category !== data.category).length > 0 && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Belum ada artikel lain dalam kategori <strong>{data.category}</strong>. Anda dapat memilih dari kategori lain atau membuat artikel baru terlebih dahulu.
+                        </p>
+                      )}
+                  </div>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>

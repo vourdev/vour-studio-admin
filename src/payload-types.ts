@@ -246,13 +246,23 @@ export interface Post {
     [k: string]: unknown;
   };
   /**
-   * Tautan internal ke layanan atau produk terkait.
+   * Artikel terkait dalam kategori yang sama.
    */
   related?:
     | {
-        label: string;
-        href: string;
-        id?: string | null;
+        id?: number | string | null;
+        title?: string | null;
+        slug?: string | null;
+        description?: string | null;
+        category?: ('Tutorial' | 'Case Study' | 'Dev Notes') | null;
+        date?: string | null;
+        readingMinutes?: number | null;
+        image?: number | Media | null;
+        status?: ('draft' | 'published') | null;
+        _status?: ('draft' | 'published') | null;
+        label?: string | null;
+        href?: string | null;
+        relatedPostId?: number | null;
       }[]
     | null;
   updatedAt: string;

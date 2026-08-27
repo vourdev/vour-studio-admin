@@ -86,6 +86,7 @@ export const postsRelated = pgTable('posts_related', {
   id: varchar('id').primaryKey(),
   order: integer('_order').notNull(),
   parentId: integer('_parent_id').notNull(),
+  relatedPostId: integer('related_post_id'),
   label: varchar('label'),
   href: varchar('href'),
 })

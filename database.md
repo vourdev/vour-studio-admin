@@ -73,9 +73,10 @@ Database terdiri dari tabel sistem (milik Payload CMS untuk preferences/locking)
     *   `image_id` (foreign key ke `media.id`)
     *   `category` (enum: `'Tutorial' | 'Case Study' | 'Dev Notes'`)
     *   `_status` (enum: `'draft' | 'published'`)
-*   **`posts_related`**: Tautan referensi luar/terkait di bawah postingan blog.
-    *   `_parent_id` (foreign key ke `posts.id`)
-    *   `label` / `href` (varchar)
+*   **`posts_related`**: Referensi artikel terkait (dalam kategori yang sama) di bawah postingan blog.
+    *   `_parent_id` (foreign key ke `posts.id` dengan opsi `ON DELETE cascade`)
+    *   `related_post_id` (foreign key/referensi ID ke `posts.id`)
+    *   `label` / `href` (varchar, opsional fallback)
 
 ### E. Tabel Leads & Subscribers (`Inbox`)
 *   **`leads`**: Data form kontak yang masuk dari marketing site (`vour-studio`).
