@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { runBlogGeneratorWorkflow } from '@/lib/services/blog-generator'
 import { getCurrentUser } from '@/lib/get-current-user'
 import { db } from '@/db'
-import { blogPosts } from '@/db/schema'
+import { posts } from '@/db/schema'
 import { desc } from 'drizzle-orm'
 
 function isAuthorized(request: NextRequest, user: any): boolean {
@@ -14,7 +14,7 @@ function isAuthorized(request: NextRequest, user: any): boolean {
     return true
   }
 
-  // Also check x-api-key or query token
+  // Also check x-service-key or x-api-key
   const apiKey = request.headers.get('x-service-key') || request.headers.get('x-api-key')
   if (apiKey && apiKey === serviceKey) {
     return true
@@ -25,7 +25,7 @@ function isAuthorized(request: NextRequest, user: any): boolean {
 
 /**
  * GET /api/generator/blog
- * Mengambil daftar artikel yang dihasilkan oleh generator atau status terakhir
+ * Mengambil daftar artikel blog terbaru dari tabel posts
  */
 export async function GET(request: NextRequest) {
   try {
@@ -37,16 +37,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = Math.min(50, Math.max(1, Number(searchParams.get('limit') || '10')))
 
-    const posts = await db
-      .select()
-      .from(blogPosts)
-      .orderBy(desc(blogPosts.createdAt))
+    const list = await db
+      .select({
+        id: posts.id,
+        title: posts.title,
+        slug: posts.slug,
+        category: posts.category,
+        status: posts.status,
+        date: posts.date,
+        createdAt: posts.createdAt,
+      })
+      .from(posts)
+      .orderBy(desc(posts.createdAt))
       .limit(limit)
 
     return NextResponse.json({
       success: true,
-      total: posts.length,
-      docs: posts,
+      total: list.length,
+      docs: list,
     })
   } catch (error) {
     return NextResponse.json(
@@ -58,7 +66,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/generator/blog
- * Memicu proses pembuatan artikel blog otomatis dari Topic Bank
+ * Menerima trigger pembuatan artikel blog (baik direct payload dari n8n maupun internal Topic Bank)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -73,11 +81,33 @@ export async function POST(request: NextRequest) {
     } catch {}
 
     const autoPublish = body.autoPublish ?? true
-    const specificTopic = body.topic ?? undefined
+
+    // Check if n8n passes direct article content (from Node 4 / Omniroute)
+    let specificArticle = undefined
+    let specificTopic = body.topic ?? undefined
+
+    if (body.content || (body.title && body.description)) {
+      specificArticle = {
+        title: body.title,
+        content: body.content,
+        description: body.description,
+        category: body.category,
+        readingMinutes: Number(body.readingMinutes) || 5,
+      }
+
+      if (!specificTopic && body.topicId) {
+        specificTopic = {
+          id: body.topicId,
+          title: body.title,
+          category: body.category,
+        }
+      }
+    }
 
     const result = await runBlogGeneratorWorkflow({
       autoPublish,
       specificTopic,
+      specificArticle,
     })
 
     if (!result.success) {
