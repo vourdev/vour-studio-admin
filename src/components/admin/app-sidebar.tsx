@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  BookOpen,
   FileText,
   FolderKanban,
   Images,
@@ -96,6 +97,14 @@ export function AppSidebar({ user }: { user: User | null }) {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={isActive('/blog')}>
+                  <Link href="/blog" target="_blank">
+                    <BookOpen />
+                    <span>Lihat Blog</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

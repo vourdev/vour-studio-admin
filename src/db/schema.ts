@@ -2,6 +2,7 @@ import {
   pgTable,
   serial,
   varchar,
+  text,
   integer,
   numeric,
   timestamp,
@@ -152,4 +153,18 @@ export const payloadKv = pgTable('payload_kv', {
   id: serial('id').primaryKey(),
   key: varchar('key').notNull(),
   data: jsonb('data').notNull(),
+})
+
+export const blogPosts = pgTable('blog_posts', {
+  id: serial('id').primaryKey(),
+  remoteTopicId: varchar('remote_topic_id'),
+  title: varchar('title').notNull(),
+  slug: varchar('slug').notNull(),
+  content: text('content').notNull(),
+  category: varchar('category').default('Dev Notes'),
+  readingMinutes: numeric('reading_minutes').default('5'),
+  status: varchar('status').default('published'),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
