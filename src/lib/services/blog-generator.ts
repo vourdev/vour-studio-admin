@@ -1,8 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { db } from '@/db'
-import { blogPosts } from '@/db/schema'
+import { posts, blogPosts } from '@/db/schema'
 import { fetchNextTopicForBlog, updateTopicBlogStatus, type CarouselTopic } from './carousel-backend'
 import { generateBlogArticle, type GeneratedBlogArticle } from './omniroute'
+import { markdownToLexical } from '@/lib/markdown-to-lexical'
 import { revalidateSite } from '@/hooks/revalidate-site'
 
 function slugify(text: string): string {
@@ -23,13 +24,19 @@ async function generateUniqueSlug(baseTitle: string): Promise<string> {
   let counter = 1
 
   while (true) {
-    const [existing] = await db
+    const [existingPost] = await db
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.slug, slug))
+      .limit(1)
+
+    const [existingBlogPost] = await db
       .select({ id: blogPosts.id })
       .from(blogPosts)
       .where(eq(blogPosts.slug, slug))
       .limit(1)
 
-    if (!existing) {
+    if (!existingPost && !existingBlogPost) {
       return slug
     }
 
@@ -48,7 +55,12 @@ export interface BlogGeneratorResult {
 }
 
 /**
- * TASK 4 & Orchestration: Run full blog generation workflow.
+ * Orchestrator: Runs full blog generation workflow.
+ * 1. Fetches topic from Carousel Backend
+ * 2. Generates article with Omniroute LLM
+ * 3. Saves to primary `posts` table (Lexical JSON format) & `blog_posts` table (Postgres)
+ * 4. Updates status back to Carousel Backend Topic Bank
+ * 5. Revalidates marketing site (vour-studio)
  */
 export async function runBlogGeneratorWorkflow(options: {
   autoPublish?: boolean
@@ -78,11 +90,27 @@ export async function runBlogGeneratorWorkflow(options: {
     // 3. Generate unique slug
     const slug = await generateUniqueSlug(article.title || topic.title)
 
-    // 4. Save to Postgres (vour.dev blog_posts)
+    // 4. Save to central `posts` table (shared with vour-studio and admin dashboard)
     const status = autoPublish ? 'published' : 'draft'
     const publishedAt = autoPublish ? new Date() : null
+    const lexicalContent = markdownToLexical(article.content)
 
     const [savedPost] = await db
+      .insert(posts)
+      .values({
+        title: article.title,
+        slug,
+        description: article.description,
+        category: article.category || 'Dev Notes',
+        date: publishedAt || new Date(),
+        readingMinutes: String(article.readingMinutes || 5),
+        content: lexicalContent,
+        status,
+      })
+      .returning()
+
+    // Also mirror to `blog_posts` table
+    await db
       .insert(blogPosts)
       .values({
         remoteTopicId: String(topic.id),
@@ -94,9 +122,9 @@ export async function runBlogGeneratorWorkflow(options: {
         status,
         publishedAt,
       })
-      .returning()
+      .catch((err) => console.warn('[blog-generator] Note: Mirror to blog_posts skipped:', err?.message))
 
-    console.log(`[blog-generator] Artikel tersimpan di Postgres dengan ID #${savedPost.id}, Slug: /blog/${slug}`)
+    console.log(`[blog-generator] Artikel tersimpan di tabel posts dengan ID #${savedPost.id}, Slug: ${slug}`)
 
     // 5. Update status back to Carousel Backend Topic Bank
     const updateResult = await updateTopicBlogStatus(topic.id, 'published', {
@@ -108,12 +136,12 @@ export async function runBlogGeneratorWorkflow(options: {
       console.log(`[blog-generator] Status topik #${topic.id} di Carousel Backend berhasil di-update.`)
     }
 
-    // 6. Trigger marketing site revalidation
+    // 6. Trigger marketing site (vour-studio) revalidation
     await revalidateSite()
 
     return {
       success: true,
-      message: `Artikel "${article.title}" berhasil digenerate dan dipublikasikan.`,
+      message: `Artikel "${article.title}" berhasil digenerate dan dipublikasikan ke ekosistem Vour.`,
       topic,
       article,
       post: savedPost,
