@@ -1,31 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { runBlogGeneratorWorkflow } from '@/lib/services/blog-generator'
 import { getCurrentUser } from '@/lib/get-current-user'
-import { db } from '@/db'
-import { posts } from '@/db/schema'
-import { desc } from 'drizzle-orm'
+
+const BACKEND_URL = (process.env.BACKEND_VOUR_STUDIO_URL || 'http://localhost:4000').replace(/\/+$/, '')
+const SERVICE_KEY = process.env.VOURDEV_SERVICE_KEY || ''
 
 function isAuthorized(request: NextRequest, user: any): boolean {
   if (user) return true
-
   const authHeader = request.headers.get('authorization')
-  const serviceKey = process.env.VOURDEV_SERVICE_KEY || '3u820qD0ZIPTI6dRDmmvQ3hWh8jNLa5W7slDkp/oBhs='
-  if (authHeader && serviceKey && authHeader === `Bearer ${serviceKey}`) {
-    return true
-  }
-
-  // Also check x-service-key or x-api-key
+  if (authHeader && SERVICE_KEY && authHeader === `Bearer ${SERVICE_KEY}`) return true
   const apiKey = request.headers.get('x-service-key') || request.headers.get('x-api-key')
-  if (apiKey && apiKey === serviceKey) {
-    return true
-  }
-
+  if (apiKey && apiKey === SERVICE_KEY) return true
   return false
 }
 
 /**
- * GET /api/generator/blog
- * Mengambil daftar artikel blog terbaru dari tabel posts
+ * GET /api/generator/blog — proxy to backend-vour-studio
  */
 export async function GET(request: NextRequest) {
   try {
@@ -34,28 +23,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const limit = Math.min(50, Math.max(1, Number(searchParams.get('limit') || '10')))
-
-    const list = await db
-      .select({
-        id: posts.id,
-        title: posts.title,
-        slug: posts.slug,
-        category: posts.category,
-        status: posts.status,
-        date: posts.date,
-        createdAt: posts.createdAt,
-      })
-      .from(posts)
-      .orderBy(desc(posts.createdAt))
-      .limit(limit)
-
-    return NextResponse.json({
-      success: true,
-      total: list.length,
-      docs: list,
+    const res = await fetch(`${BACKEND_URL}/api/posts?status=all`, {
+      headers: { Authorization: `Bearer ${SERVICE_KEY}` },
     })
+    const data = await res.json()
+    return NextResponse.json(data, { status: res.status })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal Server Error' },
@@ -65,8 +37,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/generator/blog
- * Menerima trigger pembuatan artikel blog (baik direct payload dari n8n maupun internal Topic Bank)
+ * POST /api/generator/blog — proxy to backend-vour-studio
  */
 export async function POST(request: NextRequest) {
   try {
@@ -80,46 +51,22 @@ export async function POST(request: NextRequest) {
       body = await request.json()
     } catch {}
 
-    const autoPublish = body.autoPublish ?? true
-
-    // Check if n8n passes direct article content (from Node 4 / Omniroute)
-    let specificArticle = undefined
-    let specificTopic = body.topic ?? undefined
-
-    if (body.content || (body.title && body.description)) {
-      specificArticle = {
-        title: body.title,
-        content: body.content,
-        description: body.description,
-        category: body.category,
-        readingMinutes: Number(body.readingMinutes) || 5,
-      }
-
-      if (!specificTopic && body.topicId) {
-        specificTopic = {
-          id: body.topicId,
-          title: body.title,
-          category: body.category,
-        }
-      }
-    }
-
-    const result = await runBlogGeneratorWorkflow({
-      autoPublish,
-      specificTopic,
-      specificArticle,
+    const res = await fetch(`${BACKEND_URL}/api/generator/blog`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
     })
 
-    if (!result.success) {
-      return NextResponse.json(result, { status: 400 })
-    }
-
-    return NextResponse.json(result, { status: 201 })
+    const data = await res.json()
+    return NextResponse.json(data, { status: res.status })
   } catch (error) {
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Gagal mengeksekusi blog generator.',
+        error: error instanceof Error ? error.message : 'Gagal menghubungi backend-vour-studio.',
       },
       { status: 500 }
     )
