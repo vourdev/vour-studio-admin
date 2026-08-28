@@ -133,6 +133,10 @@ export async function fetchFullDoc(slug: string, table: any, id: any) {
 
   const hydratedDoc = { ...doc } as any
 
+  if ('status' in doc) {
+    hydratedDoc._status = doc.status
+  }
+
   if ('imageId' in doc) {
     hydratedDoc.image = null
     if (doc.imageId) {
@@ -414,6 +418,11 @@ export function createCrudHandlers(table: any, slug: string) {
           delete body.image
         }
 
+        if ('_status' in body) {
+          body.status = body._status
+          delete body._status
+        }
+
         const subFields = extractSubFields(slug, body)
 
         const [inserted] = (await db.insert(table).values(body).returning()) as any[]
@@ -528,6 +537,11 @@ export function createIdCrudHandlers(table: any, slug: string) {
         if ('image' in body) {
           body.imageId = body.image
           delete body.image
+        }
+
+        if ('_status' in body) {
+          body.status = body._status
+          delete body._status
         }
 
         const subFields = extractSubFields(slug, body)

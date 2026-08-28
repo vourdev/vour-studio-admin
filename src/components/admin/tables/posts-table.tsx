@@ -60,7 +60,10 @@ const useColumns = (canWrite: boolean, onRefresh: () => void): ColumnDef<Post>[]
     accessorKey: '_status',
     header: 'Status',
     enableSorting: false,
-    cell: ({ row }) => <StatusBadge status={row.original._status || 'draft'} />,
+    cell: ({ row }) => {
+      const status = row.original._status || (row.original as any).status || 'draft'
+      return <StatusBadge status={status} />
+    },
   },
   {
     accessorKey: 'date',
