@@ -83,15 +83,6 @@ export const posts = pgTable('posts', {
   status: varchar('_status').default('draft'),
 })
 
-export const postsRelated = pgTable('posts_related', {
-  id: varchar('id').primaryKey(),
-  order: integer('_order').notNull(),
-  parentId: integer('_parent_id').notNull(),
-  relatedPostId: integer('related_post_id'),
-  label: varchar('label'),
-  href: varchar('href'),
-})
-
 export const products = pgTable('products', {
   id: serial('id').primaryKey(),
   name: varchar('name').notNull(),

@@ -17,10 +17,6 @@ function extractSubFields(slug: string, body: any) {
     result.technology = body.technology
     delete body.technology
   }
-  if (slug === 'posts' && 'related' in body) {
-    result.related = body.related
-    delete body.related
-  }
   if (slug === 'users') {
     if ('permissions' in body) {
       result.permissions = body.permissions
@@ -40,9 +36,6 @@ async function deleteSubFields(slug: string, parentIds: any[]) {
   }
   if (slug === 'projects') {
     await db.delete(schema.projectsTechnology).where(inArray(schema.projectsTechnology.parentId, parentIds))
-  }
-  if (slug === 'posts') {
-    await db.delete(schema.postsRelated).where(inArray(schema.postsRelated.parentId, parentIds))
   }
   if (slug === 'users') {
     await db.delete(schema.usersPermissions).where(inArray(schema.usersPermissions.parentId, parentIds))
@@ -76,25 +69,6 @@ async function writeSubFields(slug: string, parentId: any, subFields: any) {
     }))
     if (values.length > 0) {
       await db.insert(schema.projectsTechnology).values(values)
-    }
-  }
-
-  if (slug === 'posts' && subFields.related) {
-    const list = Array.isArray(subFields.related) ? subFields.related : []
-    const values = list.map((item: any, index: number) => {
-      const relId = typeof item === 'object' && item !== null ? item.relatedPostId ?? item.id : item
-      const numId = Number(relId)
-      return {
-        id: `${parentId}_rel_${index}_${Math.random().toString(36).substr(2, 4)}`,
-        order: index + 1,
-        parentId,
-        relatedPostId: isNaN(numId) ? null : numId,
-        label: typeof item === 'object' && item ? item.label ?? item.title ?? null : null,
-        href: typeof item === 'object' && item ? item.href ?? (item.slug ? `/blog/${item.slug}` : null) : null,
-      }
-    })
-    if (values.length > 0) {
-      await db.insert(schema.postsRelated).values(values)
     }
   }
 
@@ -194,89 +168,6 @@ export async function fetchFullDoc(slug: string, table: any, id: any) {
       .where(eq(schema.projectsTechnology.parentId, id))
       .orderBy(asc(schema.projectsTechnology.order))
     return { ...hydratedDoc, technology }
-  }
-
-  if (slug === 'posts') {
-    const relatedRows = await db
-      .select()
-      .from(schema.postsRelated)
-      .where(eq(schema.postsRelated.parentId, id))
-      .orderBy(asc(schema.postsRelated.order))
-
-    const hydratedRelated = await Promise.all(
-      relatedRows.map(async (row) => {
-        if (row.relatedPostId) {
-          const [relPost] = await db
-            .select()
-            .from(schema.posts)
-            .where(eq(schema.posts.id, row.relatedPostId))
-            .limit(1)
-
-          if (relPost) {
-            let image = null
-            if (relPost.imageId) {
-              const [mediaDoc] = await db
-                .select()
-                .from(schema.media)
-                .where(eq(schema.media.id, relPost.imageId))
-                .limit(1)
-
-              if (mediaDoc) {
-                image = {
-                  id: mediaDoc.id,
-                  alt: mediaDoc.alt,
-                  url: mediaDoc.url,
-                  filename: mediaDoc.filename,
-                  mimeType: mediaDoc.mimeType,
-                  filesize: mediaDoc.filesize,
-                  width: mediaDoc.width,
-                  height: mediaDoc.height,
-                  sizes: {
-                    card: {
-                      url: mediaDoc.sizesCardUrl,
-                      filename: mediaDoc.sizesCardFilename,
-                      width: mediaDoc.sizesCardWidth,
-                      height: mediaDoc.sizesCardHeight,
-                    },
-                    og: {
-                      url: mediaDoc.sizesOgUrl,
-                      filename: mediaDoc.sizesOgFilename,
-                      width: mediaDoc.sizesOgWidth,
-                      height: mediaDoc.sizesOgHeight,
-                    },
-                  },
-                }
-              }
-            }
-
-            return {
-              id: relPost.id,
-              title: relPost.title,
-              slug: relPost.slug,
-              description: relPost.description,
-              category: relPost.category,
-              date: relPost.date,
-              readingMinutes: relPost.readingMinutes,
-              status: relPost.status,
-              _status: relPost.status,
-              image,
-              label: relPost.title || row.label,
-              href: relPost.slug ? `/blog/${relPost.slug}` : row.href,
-              relatedPostId: relPost.id,
-            }
-          }
-        }
-
-        return {
-          id: row.id,
-          label: row.label,
-          href: row.href,
-          relatedPostId: row.relatedPostId,
-        }
-      })
-    )
-
-    return { ...hydratedDoc, related: hydratedRelated.filter(Boolean) }
   }
 
   if (slug === 'users') {
