@@ -246,7 +246,7 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
                 initialMedia={typeof project?.image === 'object' ? (project?.image as any) : null}
                 onChange={(id) => set('image', id)}
                 disabled={!canWrite}
-                recommendedText="Dipotong ke rasio 4:3 di situs. Rekomendasi 1200×900 piksel, maks. 4.5MB"
+                recommendedText="Dipotong ke rasio 16:10 di situs. Rekomendasi 1600×1000 piksel, maks. 4.5MB"
               />
             </div>
           </CardContent>
