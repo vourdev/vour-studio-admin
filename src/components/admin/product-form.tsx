@@ -129,7 +129,9 @@ export function ProductForm({ product, canWrite = false }: { product?: Product; 
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Nama *</Label>
+                <div className="flex h-6 items-center">
+                  <Label htmlFor="name">Nama *</Label>
+                </div>
                 <Input
                   id="name"
                   value={data.name}
@@ -144,18 +146,18 @@ export function ProductForm({ product, canWrite = false }: { product?: Product; 
                 />
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="slug">
-                    Slug
-                    <span className="ml-2 text-xs font-normal text-muted-foreground">
-                      {isCustomSlug ? 'Manual' : 'Otomatis'}
+                <div className="flex h-6 items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="slug">Slug</Label>
+                    <span className="text-xs font-normal text-muted-foreground">
+                      ({isCustomSlug ? 'Manual' : 'Otomatis'})
                     </span>
-                  </Label>
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground -mr-1"
                     onClick={handleSyncSlug}
                     title="Sinkronkan slug dengan nama"
                   >
@@ -174,7 +176,9 @@ export function ProductForm({ product, canWrite = false }: { product?: Product; 
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="category">Kategori *</Label>
+                <div className="flex h-6 items-center">
+                  <Label htmlFor="category">Kategori *</Label>
+                </div>
                 <Select value={data.category} onValueChange={(v) => set('category', v as ProductDraft['category'])}>
                   <SelectTrigger id="category" className="w-full">
                     <SelectValue placeholder="Pilih kategori" />
@@ -189,7 +193,9 @@ export function ProductForm({ product, canWrite = false }: { product?: Product; 
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="status">Status *</Label>
+                <div className="flex h-6 items-center">
+                  <Label htmlFor="status">Status *</Label>
+                </div>
                 <Select value={data.status} onValueChange={(v) => set('status', v as ProductDraft['status'])}>
                   <SelectTrigger id="status" className="w-full">
                     <SelectValue placeholder="Pilih status" />
