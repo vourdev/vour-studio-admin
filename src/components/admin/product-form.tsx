@@ -236,7 +236,7 @@ export function ProductForm({ product, canWrite = false }: { product?: Product; 
                 initialMedia={typeof product?.image === 'object' ? (product?.image as any) : null}
                 onChange={(id) => set('image', id)}
                 disabled={!canWrite}
-                recommendedText="Rekomendasi rasio 16:9 (1280×720 piksel), maks. 4.5MB"
+                recommendedText="Dipotong ke 16:10 di kartu dan lebih lebar lagi di grid produk. Rekomendasi 1600×1000 piksel, isi penting di tengah atas, maks. 4.5MB"
               />
             </div>
           </CardContent>
