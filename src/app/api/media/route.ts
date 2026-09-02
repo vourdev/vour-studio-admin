@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { DeleteObjectsCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import { inArray } from 'drizzle-orm'
 import sharp from 'sharp'
 
 import { db } from '@/db'
@@ -20,7 +21,63 @@ const s3 = new S3Client({
 
 const defaultHandlers = createCrudHandlers(media, 'media')
 
-export const { GET, DELETE } = defaultHandlers
+export const { GET } = defaultHandlers
+
+export async function DELETE(request: Request) {
+  try {
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    if (!canWrite(user, 'media')) return NextResponse.json({ message: 'Forbidden' }, { status: 403 })
+
+    const { searchParams } = new URL(request.url)
+    const whereParam = searchParams.get('where')
+    if (!whereParam) return NextResponse.json({ message: 'Missing where query' }, { status: 400 })
+
+    const parsed = JSON.parse(whereParam)
+    const ids = parsed.id?.in
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ message: 'Invalid or empty IDs array' }, { status: 400 })
+    }
+
+    const numIds = ids.map(Number).filter((n) => !isNaN(n))
+    if (numIds.length === 0) {
+      return NextResponse.json({ message: 'Invalid IDs' }, { status: 400 })
+    }
+
+    const mediaDocs = await db.select().from(media).where(inArray(media.id, numIds))
+
+    // Clean up files in R2 storage
+    const keysToDelete: { Key: string }[] = []
+    for (const doc of mediaDocs) {
+      if (doc.filename) keysToDelete.push({ Key: doc.filename })
+      if (doc.sizesCardFilename) keysToDelete.push({ Key: doc.sizesCardFilename })
+      if (doc.sizesOgFilename) keysToDelete.push({ Key: doc.sizesOgFilename })
+    }
+
+    const bucket = process.env.R2_BUCKET
+    if (bucket && keysToDelete.length > 0) {
+      try {
+        await s3.send(
+          new DeleteObjectsCommand({
+            Bucket: bucket,
+            Delete: { Objects: keysToDelete },
+          })
+        )
+      } catch (err) {
+        console.error('Error deleting media from S3/R2:', err)
+      }
+    }
+
+    await db.delete(media).where(inArray(media.id, numIds))
+
+    return new NextResponse(null, { status: 204 })
+  } catch (error) {
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : 'Gagal menghapus media.' },
+      { status: 500 }
+    )
+  }
+}
 
 export async function POST(request: Request) {
   try {
