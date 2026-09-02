@@ -2,20 +2,13 @@
 
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { AlertTriangle, ArrowLeft, CloudUpload, ExternalLink, Loader2 } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CloudUpload, ExternalLink, Loader2, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { StatusBadge } from '@/components/admin/status-badge'
-
 import type { Post } from '@/payload-types'
 import { create, update } from '@/lib/admin-api'
-import { useAutosaveDraft } from '@/hooks/use-autosave-draft'
-import { DraftRestoreBanner } from '@/components/admin/draft-restore-banner'
-// The Lexical editor is a large client bundle — load it lazily (client-only)
-// so the rest of the form paints and is usable first.
-import type { RichTextValue } from '@/components/admin/rich-text-editor'
+import { formatSlug } from '@/lib/format-slug'
 import { MediaPicker } from '@/components/admin/media-picker'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,6 +16,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useAutosaveDraft } from '@/hooks/use-autosave-draft'
+import { DraftRestoreBanner } from '@/components/admin/draft-restore-banner'
 
 const RichTextEditor = dynamic(
   () => import('@/components/admin/rich-text-editor').then((m) => m.RichTextEditor),
@@ -36,7 +32,7 @@ const RichTextEditor = dynamic(
   },
 )
 
-const EMPTY_CONTENT: RichTextValue = {
+const EMPTY_CONTENT = {
   root: {
     type: 'root',
     format: '',
@@ -66,17 +62,19 @@ type PostDraft = {
   date: string
   readingMinutes: number
   image: number | null
-  content: RichTextValue
+  content: any
 }
 
 export function PostForm({
   post,
-  previewUrl,
+  previewUrl: initialPreviewUrl,
   canWrite = false,
+  marketingSiteUrl = '',
 }: {
   post?: Post
   previewUrl?: string | null
   canWrite?: boolean
+  marketingSiteUrl?: string
 }) {
   const router = useRouter()
   const isEdit = Boolean(post)
@@ -93,6 +91,9 @@ export function PostForm({
     image: post?.image && typeof post.image !== 'number' ? post.image.id : (post?.image as number | null) ?? null,
     content: post?.content ?? EMPTY_CONTENT,
   })
+  const [isCustomSlug, setIsCustomSlug] = useState(
+    Boolean(isEdit && post?.slug && post?.title && post.slug !== formatSlug(post.title))
+  )
   const [saving, setSaving] = useState(false)
 
   const { pendingDraft, lastSavedAt, error, isSaving, restore, discard, clear } = useAutosaveDraft<PostDraft>({
@@ -108,17 +109,44 @@ export function PostForm({
   const set = <K extends keyof PostDraft>(key: K, value: PostDraft[K]) =>
     setData((prev) => ({ ...prev, [key]: value }))
 
-  const slugify = (val: string) =>
-    val
-      .replace(/ /g, '-')
-      .replace(/[^\w-]+/g, '')
-      .toLowerCase()
+  const handleTitleChange = (title: string) => {
+    setData((prev) => ({
+      ...prev,
+      title,
+      slug: !isCustomSlug ? formatSlug(title) : prev.slug,
+    }))
+  }
+
+  const handleSlugChange = (slug: string) => {
+    setIsCustomSlug(true)
+    set('slug', slug)
+  }
+
+  const handleSyncSlug = () => {
+    setIsCustomSlug(false)
+    setData((prev) => ({
+      ...prev,
+      slug: formatSlug(prev.title),
+    }))
+  }
+
+  const handleSlugBlur = () => {
+    if (!data.slug.trim()) {
+      setIsCustomSlug(false)
+      setData((prev) => ({
+        ...prev,
+        slug: formatSlug(prev.title),
+      }))
+    }
+  }
 
   const handleSave = async (targetStatus: 'draft' | 'published') => {
     setSaving(true)
     try {
+      const finalSlug = data.slug.trim() || formatSlug(data.title)
       const payload: Record<string, unknown> = {
         ...data,
+        slug: finalSlug,
         image: data.image ?? null,
         content: data.content,
         date: data.date ? new Date(data.date).toISOString() : undefined,
@@ -141,6 +169,12 @@ export function PostForm({
       setSaving(false)
     }
   }
+
+  const previewUrl =
+    initialPreviewUrl ||
+    (marketingSiteUrl && data.slug
+      ? `${marketingSiteUrl.replace(/\/$/, '')}/blog/${data.slug}`
+      : null)
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -194,24 +228,41 @@ export function PostForm({
               <Input
                 id="title"
                 value={data.title}
-                onChange={(e) => set('title', e.target.value)}
+                onChange={(e) => handleTitleChange(e.target.value)}
+                onBlur={() => {
+                  if (!data.slug.trim()) {
+                    setIsCustomSlug(false)
+                    setData((prev) => ({ ...prev, slug: formatSlug(prev.title) }))
+                  }
+                }}
                 placeholder="Judul artikel"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="slug">
-                Slug
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  Kosongkan untuk otomatis dari judul.
-                </span>
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="slug">
+                  Slug
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    {isCustomSlug ? 'Manual' : 'Otomatis'}
+                  </span>
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={handleSyncSlug}
+                  title="Sinkronkan slug dengan judul"
+                >
+                  <RefreshCw className="mr-1 size-3" />
+                  Sync dari judul
+                </Button>
+              </div>
               <Input
                 id="slug"
                 value={data.slug}
-                onChange={(e) => set('slug', e.target.value)}
-                onBlur={() => {
-                  if (!data.slug && data.title) set('slug', slugify(data.title))
-                }}
+                onChange={(e) => handleSlugChange(e.target.value)}
+                onBlur={handleSlugBlur}
                 placeholder="judul-artikel"
               />
             </div>

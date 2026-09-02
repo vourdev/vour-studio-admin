@@ -1,12 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Project } from '@/payload-types'
 import { create, update } from '@/lib/admin-api'
+import { formatSlug } from '@/lib/format-slug'
 import { MediaPicker } from '@/components/admin/media-picker'
 import { ArrayField } from '@/components/admin/array-field'
 import { Button } from '@/components/ui/button'
@@ -42,21 +43,49 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
     technology: project?.technology?.map(({ tech }) => ({ tech })) ?? [{ tech: '' }],
     image: project?.image && typeof project.image !== 'number' ? project.image.id : (project?.image as number | null) ?? null,
   })
+  const [isCustomSlug, setIsCustomSlug] = useState(
+    Boolean(isEdit && project?.slug && project?.name && project.slug !== formatSlug(project.name))
+  )
   const [saving, setSaving] = useState(false)
 
   const set = <K extends keyof ProjectDraft>(key: K, value: ProjectDraft[K]) =>
     setData((prev) => ({ ...prev, [key]: value }))
 
-  const slugify = (val: string) =>
-    val
-      .replace(/ /g, '-')
-      .replace(/[^\w-]+/g, '')
-      .toLowerCase()
+  const handleNameChange = (name: string) => {
+    setData((prev) => ({
+      ...prev,
+      name,
+      slug: !isCustomSlug ? formatSlug(name) : prev.slug,
+    }))
+  }
+
+  const handleSlugChange = (slug: string) => {
+    setIsCustomSlug(true)
+    set('slug', slug)
+  }
+
+  const handleSyncSlug = () => {
+    setIsCustomSlug(false)
+    setData((prev) => ({
+      ...prev,
+      slug: formatSlug(prev.name),
+    }))
+  }
+
+  const handleSlugBlur = () => {
+    if (!data.slug.trim()) {
+      setIsCustomSlug(false)
+      setData((prev) => ({
+        ...prev,
+        slug: formatSlug(prev.name),
+      }))
+    }
+  }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      const finalSlug = data.slug.trim() || slugify(data.name)
+      const finalSlug = data.slug.trim() || formatSlug(data.name)
       const payload: Record<string, unknown> = {
         ...data,
         slug: finalSlug,
@@ -104,24 +133,41 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
                 <Input
                   id="name"
                   value={data.name}
-                  onChange={(e) => set('name', e.target.value)}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  onBlur={() => {
+                    if (!data.slug.trim()) {
+                      setIsCustomSlug(false)
+                      setData((prev) => ({ ...prev, slug: formatSlug(prev.name) }))
+                    }
+                  }}
                   placeholder="Nama project"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="slug">
-                  Slug
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    Kosongkan untuk otomatis.
-                  </span>
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="slug">
+                    Slug
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      {isCustomSlug ? 'Manual' : 'Otomatis'}
+                    </span>
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={handleSyncSlug}
+                    title="Sinkronkan slug dengan nama"
+                  >
+                    <RefreshCw className="mr-1 size-3" />
+                    Sync dari nama
+                  </Button>
+                </div>
                 <Input
                   id="slug"
                   value={data.slug}
-                  onChange={(e) => set('slug', e.target.value)}
-                  onBlur={() => {
-                    if (!data.slug && data.name) set('slug', slugify(data.name))
-                  }}
+                  onChange={(e) => handleSlugChange(e.target.value)}
+                  onBlur={handleSlugBlur}
                   placeholder="nama-project"
                 />
               </div>

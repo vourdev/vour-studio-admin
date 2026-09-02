@@ -1,12 +1,13 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 import type { Product } from '@/payload-types'
 import { create, update } from '@/lib/admin-api'
+import { formatSlug } from '@/lib/format-slug'
 import { MediaPicker } from '@/components/admin/media-picker'
 import { PriceInput } from '@/components/admin/price-input'
 import { ArrayField } from '@/components/admin/array-field'
@@ -35,31 +36,61 @@ export function ProductForm({ product, canWrite = false }: { product?: Product; 
   const [data, setData] = useState<ProductDraft>({
     slug: product?.slug ?? '',
     name: product?.name ?? '',
-    category: product?.category ?? 'Template',
+    category: (product?.category as ProductDraft['category']) ?? 'Template',
     tagline: product?.tagline ?? '',
     features: product?.features?.map(({ feature }) => ({ feature })) ?? [{ feature: '' }],
     price: product?.price ?? null,
     status: product?.status ?? 'soon',
     image: product?.image && typeof product.image !== 'number' ? product.image.id : (product?.image as number | null) ?? null,
   })
+  const [isCustomSlug, setIsCustomSlug] = useState(
+    Boolean(isEdit && product?.slug && product?.name && product.slug !== formatSlug(product.name))
+  )
   const [saving, setSaving] = useState(false)
 
   const set = <K extends keyof ProductDraft>(key: K, value: ProductDraft[K]) =>
     setData((prev) => ({ ...prev, [key]: value }))
 
-  const slugify = (val: string) =>
-    val
-      .replace(/ /g, '-')
-      .replace(/[^\w-]+/g, '')
-      .toLowerCase()
+  const handleNameChange = (name: string) => {
+    setData((prev) => ({
+      ...prev,
+      name,
+      slug: !isCustomSlug ? formatSlug(name) : prev.slug,
+    }))
+  }
+
+  const handleSlugChange = (slug: string) => {
+    setIsCustomSlug(true)
+    set('slug', slug)
+  }
+
+  const handleSyncSlug = () => {
+    setIsCustomSlug(false)
+    setData((prev) => ({
+      ...prev,
+      slug: formatSlug(prev.name),
+    }))
+  }
+
+  const handleSlugBlur = () => {
+    if (!data.slug.trim()) {
+      setIsCustomSlug(false)
+      setData((prev) => ({
+        ...prev,
+        slug: formatSlug(prev.name),
+      }))
+    }
+  }
 
   const handleSave = async () => {
     setSaving(true)
     try {
+      const finalSlug = data.slug.trim() || formatSlug(data.name)
       const payload: Record<string, unknown> = {
         ...data,
+        slug: finalSlug,
         image: data.image ?? null,
-        features: data.features.map(({ feature }) => ({ feature })),
+        features: data.features.map(({ feature }) => ({ feature: feature.trim() })).filter(({ feature }) => Boolean(feature)),
       }
       if (isEdit) {
         await update<Product>('products', product!.id, payload)
@@ -102,24 +133,41 @@ export function ProductForm({ product, canWrite = false }: { product?: Product; 
                 <Input
                   id="name"
                   value={data.name}
-                  onChange={(e) => set('name', e.target.value)}
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  onBlur={() => {
+                    if (!data.slug.trim()) {
+                      setIsCustomSlug(false)
+                      setData((prev) => ({ ...prev, slug: formatSlug(prev.name) }))
+                    }
+                  }}
                   placeholder="Nama produk"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="slug">
-                  Slug
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    Kosongkan untuk otomatis.
-                  </span>
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="slug">
+                    Slug
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      {isCustomSlug ? 'Manual' : 'Otomatis'}
+                    </span>
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={handleSyncSlug}
+                    title="Sinkronkan slug dengan nama"
+                  >
+                    <RefreshCw className="mr-1 size-3" />
+                    Sync dari nama
+                  </Button>
+                </div>
                 <Input
                   id="slug"
                   value={data.slug}
-                  onChange={(e) => set('slug', e.target.value)}
-                  onBlur={() => {
-                    if (!data.slug && data.name) set('slug', slugify(data.name))
-                  }}
+                  onChange={(e) => handleSlugChange(e.target.value)}
+                  onBlur={handleSlugBlur}
                   placeholder="nama-produk"
                 />
               </div>
