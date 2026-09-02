@@ -86,9 +86,7 @@ export function MediaLibrary({
       const res = await find<Media>('media', {
         limit: 100,
         sort: '-createdAt',
-        where: search
-          ? JSON.stringify({ filename: { contains: search } })
-          : undefined,
+        where: search ? JSON.stringify({ filename: { contains: search } }) : undefined,
       })
       setMedia(res.docs)
     } catch {
@@ -311,9 +309,7 @@ export function MediaLibrary({
             <span className="flex size-6 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">
               {selectedIds.size}
             </span>
-            <span className="text-sm font-medium">
-              {selectedIds.size} media dipilih
-            </span>
+            <span className="text-sm font-medium">{selectedIds.size} media dipilih</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -343,18 +339,16 @@ export function MediaLibrary({
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    Hapus {selectedIds.size} media terpilih?
-                  </AlertDialogTitle>
+                  <AlertDialogTitle>Hapus {selectedIds.size} media terpilih?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    {selectedIds.size} file media ini akan dihapus secara permanen dari database
-                    dan storage Cloudflare R2. Tindakan ini tidak dapat dibatalkan.
+                    {selectedIds.size} file media ini akan dihapus secara permanen dari database dan
+                    storage Cloudflare R2. Tindakan ini tidak dapat dibatalkan.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel disabled={bulkDeleting}>Batal</AlertDialogCancel>
                   <AlertDialogAction
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    className="bg-destructive text-white hover:bg-destructive/90"
                     disabled={bulkDeleting}
                     onClick={(e) => {
                       e.preventDefault()
@@ -409,7 +403,7 @@ export function MediaLibrary({
                   'group relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted transition-all cursor-pointer',
                   isSelected
                     ? 'border-primary ring-2 ring-primary ring-offset-1 bg-primary/5'
-                    : 'border-border/80 hover:border-border hover:shadow-sm'
+                    : 'border-border/80 hover:border-border hover:shadow-sm',
                 )}
               >
                 {mediaUrl(item) ? (
@@ -434,7 +428,7 @@ export function MediaLibrary({
                         'flex size-6 items-center justify-center rounded-md transition-all cursor-pointer shadow-xs',
                         isSelected
                           ? 'bg-primary text-primary-foreground opacity-100 ring-2 ring-primary-foreground/40'
-                          : 'bg-black/50 text-white opacity-0 group-hover:opacity-100 hover:bg-black/70'
+                          : 'bg-black/50 text-white opacity-0 group-hover:opacity-100 hover:bg-black/70',
                       )}
                     >
                       {isSelected ? (
@@ -446,7 +440,9 @@ export function MediaLibrary({
                         />
                       )}
                     </div>
-                  ) : <span />}
+                  ) : (
+                    <span />
+                  )}
 
                   <Button
                     type="button"
@@ -466,7 +462,10 @@ export function MediaLibrary({
                 {/* Bottom Overlay: Filename & Delete Button */}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-between gap-1.5 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-white" title={item.filename || ''}>
+                    <p
+                      className="truncate text-xs font-medium text-white"
+                      title={item.filename || ''}
+                    >
                       {item.filename}
                     </p>
                     {item.width && item.height ? (
@@ -494,7 +493,8 @@ export function MediaLibrary({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Hapus media ini?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            <strong>{item.filename}</strong> akan dihapus permanen dari storage R2 dan database.
+                            <strong>{item.filename}</strong> akan dihapus permanen dari storage R2
+                            dan database.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
