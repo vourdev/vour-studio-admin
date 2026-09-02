@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import type { Post } from '@/payload-types'
 import { create, update } from '@/lib/admin-api'
 import { formatSlug } from '@/lib/format-slug'
-import { MediaPicker } from '@/components/admin/media-picker'
+import { ImageUpload } from '@/components/admin/image-upload'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -330,19 +330,14 @@ export function PostForm({
               />
             </div>
             <div className="space-y-2">
-              <Label>Gambar sampul</Label>
-              <div className="flex flex-wrap items-center gap-3">
-                <MediaPicker
-                  value={data.image}
-                  onChange={(id) => set('image', id)}
-                  triggerLabel={data.image ? 'Ganti gambar' : 'Pilih gambar'}
-                />
-                {data.image ? (
-                  <span className="text-sm text-muted-foreground">
-                    ID media: {data.image}
-                  </span>
-                ) : null}
-              </div>
+              <Label>Gambar Sampul</Label>
+              <ImageUpload
+                value={data.image}
+                initialMedia={typeof post?.image === 'object' ? (post?.image as any) : null}
+                onChange={(id) => set('image', id)}
+                disabled={!canWrite}
+                recommendedText="Rekomendasi rasio 16:9 (1200×630 piksel), maks. 4.5MB"
+              />
             </div>
           </CardContent>
         </Card>

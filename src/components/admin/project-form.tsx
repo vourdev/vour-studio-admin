@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import type { Project } from '@/payload-types'
 import { create, update } from '@/lib/admin-api'
 import { formatSlug } from '@/lib/format-slug'
-import { MediaPicker } from '@/components/admin/media-picker'
+import { ImageUpload } from '@/components/admin/image-upload'
 import { ArrayField } from '@/components/admin/array-field'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -223,17 +223,14 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
               />
             </div>
             <div className="space-y-2">
-              <Label>Thumbnail</Label>
-              <div className="flex flex-wrap items-center gap-3">
-                <MediaPicker
-                  value={data.image}
-                  onChange={(id) => set('image', id)}
-                  triggerLabel={data.image ? 'Ganti gambar' : 'Pilih gambar'}
-                />
-                {data.image ? (
-                  <span className="text-sm text-muted-foreground">ID media: {data.image}</span>
-                ) : null}
-              </div>
+              <Label>Thumbnail Project</Label>
+              <ImageUpload
+                value={data.image}
+                initialMedia={typeof project?.image === 'object' ? (project?.image as any) : null}
+                onChange={(id) => set('image', id)}
+                disabled={!canWrite}
+                recommendedText="Rekomendasi rasio 16:9 (1280×720 piksel), maks. 4.5MB"
+              />
             </div>
           </CardContent>
         </Card>
