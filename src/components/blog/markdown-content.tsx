@@ -1,15 +1,13 @@
 import React from 'react'
 
-export function MarkdownContent({ content }: { content: string }) {
-  if (!content) return null
+function parseMarkdown(content: string): React.ReactNode[] {
+  if (!content) return []
 
-  // Split by double newlines into blocks
   const lines = content.split('\n')
   const elements: React.ReactNode[] = []
 
   let inCodeBlock = false
   let codeBlockContent: string[] = []
-  let codeLanguage = ''
   let listItems: string[] = []
   let isOrderedList = false
 
@@ -61,7 +59,6 @@ export function MarkdownContent({ content }: { content: string }) {
         if (listEl) elements.push(listEl)
 
         inCodeBlock = true
-        codeLanguage = line.trim().replace(/^```/, '')
       }
       continue
     }
@@ -140,6 +137,12 @@ export function MarkdownContent({ content }: { content: string }) {
   const finalListEl = flushList(lines.length)
   if (finalListEl) elements.push(finalListEl)
 
+  return elements
+}
+
+export function MarkdownContent({ content }: { content: string }) {
+  if (!content) return null
+  const elements = parseMarkdown(content)
   return <div className="space-y-2">{elements}</div>
 }
 

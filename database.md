@@ -59,9 +59,13 @@ Database terdiri dari tabel sistem (milik Payload CMS untuk preferences/locking)
     *   `id` (serial, Primary Key)
     *   `name` (varchar)
     *   `slug` (varchar, indeks unik)
+    *   `industry` (varchar, nama industri klien)
     *   `year` (varchar, tahun proyek)
+    *   `result` (varchar, headline hasil pekerjaan)
+    *   `challenge` (varchar, deskripsi tantangan proyek)
+    *   `solution` (varchar, deskripsi solusi yang diambil)
     *   `image_id` (foreign key ke `media.id`)
-    *   *Technologies Array*: List teknologi/alat yang dihubungkan ke proyek ini.
+    *   *Technologies Array*: List teknologi/alat (`tech`) yang dihubungkan ke proyek ini.
 
 ### D. Tabel Artikel & Blog (`Posts`)
 *   **`posts`**: Artikel berita/tutorial blog.

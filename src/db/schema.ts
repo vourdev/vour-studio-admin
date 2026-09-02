@@ -107,8 +107,11 @@ export const projects = pgTable('projects', {
   id: serial('id').primaryKey(),
   name: varchar('name').notNull(),
   slug: varchar('slug').notNull(),
-  industry: varchar('industry'),
-  year: varchar('year'),
+  industry: varchar('industry').notNull(),
+  year: varchar('year').notNull(),
+  result: varchar('result').notNull(),
+  challenge: varchar('challenge').notNull(),
+  solution: varchar('solution').notNull(),
   imageId: integer('image_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -118,7 +121,7 @@ export const projectsTechnology = pgTable('projects_technology', {
   id: varchar('id').primaryKey(),
   order: integer('_order').notNull(),
   parentId: integer('_parent_id').notNull(),
-  technology: varchar('tech').notNull(),
+  tech: varchar('tech').notNull(),
 })
 
 export const leads = pgTable('leads', {

@@ -56,10 +56,12 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
   const handleSave = async () => {
     setSaving(true)
     try {
+      const finalSlug = data.slug.trim() || slugify(data.name)
       const payload: Record<string, unknown> = {
         ...data,
+        slug: finalSlug,
         image: data.image ?? null,
-        technology: data.technology.map(({ tech }) => ({ tech })),
+        technology: data.technology.map(({ tech }) => ({ tech: tech.trim() })).filter(({ tech }) => Boolean(tech)),
       }
       if (isEdit) {
         await update<Project>('projects', project!.id, payload)
