@@ -500,7 +500,7 @@ export function MediaLibrary({
                         <AlertDialogFooter>
                           <AlertDialogCancel>Batal</AlertDialogCancel>
                           <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="bg-destructive text-white hover:bg-destructive/90"
                             onClick={() => void handleDeleteSingle(item.id)}
                           >
                             Hapus
