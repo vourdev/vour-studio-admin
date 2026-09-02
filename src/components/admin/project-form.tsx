@@ -1,5 +1,6 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
@@ -14,42 +15,51 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+
+const RichTextEditor = dynamic(
+  () => import('@/components/admin/rich-text-editor').then((m) => m.RichTextEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-48 items-center justify-center rounded-md border bg-muted/40 text-sm text-muted-foreground">
+        Memuat editor...
+      </div>
+    ),
+  }
+)
+
+/** A Lexical document with one empty paragraph, the same seed post-form uses. */
+const EMPTY_DESCRIPTION = {
+  root: {
+    type: 'root',
+    format: '',
+    indent: 0,
+    version: 1,
+    direction: null,
+    children: [
+      {
+        type: 'paragraph',
+        version: 1,
+        direction: null,
+        format: '',
+        indent: 0,
+        textFormat: 0,
+        textStyle: '',
+        children: [],
+      },
+    ],
+  },
+}
 
 type ProjectDraft = {
   slug: string
   name: string
   industry: string
   year: string
-  result: string
-  challenge: string
-  solution: string
+  /** Lexical editor state; the site renders it with its RichText component. */
+  description: any
   technology: { tech: string }[]
   image: number | null
-}
-
-/**
- * Soft length budgets, not validation.
- *
- * vour.dev sets `result` as the lead line of each case, so a long one wraps to
- * five or six lines and stops reading as a headline; `challenge` and `solution`
- * sit side by side in one row and look lopsided when the two are far apart in
- * length. The counter states the budget and colours past it, but saving is
- * never blocked -- an editor with a good reason to run long should be able to.
- */
-const LENGTH_BUDGET = { result: 160, challenge: 320, solution: 320 } as const
-
-function CharCount({ value, budget }: { value: string; budget: number }) {
-  const over = value.length > budget
-  return (
-    <span
-      className={`text-xs tabular-nums ${over ? 'text-amber-600 dark:text-amber-500' : 'text-muted-foreground'}`}
-      aria-live="polite"
-    >
-      {value.length}/{budget}
-      {over ? ' (kepanjangan untuk tampilan situs)' : ''}
-    </span>
-  )
 }
 
 export function ProjectForm({ project, canWrite = false }: { project?: Project; canWrite?: boolean }) {
@@ -61,9 +71,7 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
     name: project?.name ?? '',
     industry: project?.industry ?? '',
     year: project?.year ?? '',
-    result: project?.result ?? '',
-    challenge: project?.challenge ?? '',
-    solution: project?.solution ?? '',
+    description: (project as any)?.description ?? EMPTY_DESCRIPTION,
     technology: project?.technology?.map(({ tech }) => ({ tech })) ?? [{ tech: '' }],
     image: project?.image && typeof project.image !== 'number' ? project.image.id : (project?.image as number | null) ?? null,
   })
@@ -112,6 +120,7 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
       const finalSlug = data.slug.trim() || formatSlug(data.name)
       const payload: Record<string, unknown> = {
         ...data,
+        description: data.description ?? EMPTY_DESCRIPTION,
         slug: finalSlug,
         image: data.image ?? null,
         technology: data.technology.map(({ tech }) => ({ tech: tech.trim() })).filter(({ tech }) => Boolean(tech)),
@@ -141,7 +150,7 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{isEdit ? 'Edit Project' : 'Project Baru'}</h1>
           <p className="text-sm text-muted-foreground">
-            Isian di sini tampil apa adanya di halaman Projects vour.dev, tanpa bagian yang disembunyikan.
+            Isian di sini tampil apa adanya di kartu halaman Projects vour.dev, tanpa bagian yang disembunyikan.
           </p>
         </div>
       </div>
@@ -150,7 +159,7 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
         <Card>
           <CardHeader>
             <CardTitle>Informasi Project</CardTitle>
-            <CardDescription>Nama klien dan industrinya. Tahun tampil di rail kiri kartu.</CardDescription>
+            <CardDescription>Nama klien dan industrinya. Tahun juga menentukan urutan kartu, terbaru di atas.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -219,59 +228,15 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-baseline justify-between gap-3">
-                <Label htmlFor="result">Hasil *</Label>
-                <CharCount value={data.result} budget={LENGTH_BUDGET.result} />
-              </div>
-              <Textarea
-                id="result"
-                value={data.result}
-                onChange={(e) => set('result', e.target.value)}
-                placeholder="Apa yang berubah untuk klien setelah sistemnya jalan"
-                rows={3}
+              <Label>Deskripsi *</Label>
+              <RichTextEditor
+                value={data.description}
+                onChange={(description) => set('description', description)}
               />
               <p className="text-xs text-muted-foreground">
-                Kalimat pembuka kartu, dicetak paling besar setelah nama klien. Tulis perubahannya
-                dari sisi klien, bukan teknologinya.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-baseline justify-between gap-3">
-                <Label htmlFor="challenge">
-                  Tantangan *
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    tampil sebagai &ldquo;Sebelumnya&rdquo;
-                  </span>
-                </Label>
-                <CharCount value={data.challenge} budget={LENGTH_BUDGET.challenge} />
-              </div>
-              <Textarea
-                id="challenge"
-                value={data.challenge}
-                onChange={(e) => set('challenge', e.target.value)}
-                placeholder="Kondisi klien sebelum dikerjakan, seperti yang mereka ceritakan"
-                rows={4}
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-baseline justify-between gap-3">
-                <Label htmlFor="solution">
-                  Solusi *
-                  <span className="ml-2 text-xs font-normal text-muted-foreground">
-                    tampil sebagai &ldquo;Yang kami kerjakan&rdquo;
-                  </span>
-                </Label>
-                <CharCount value={data.solution} budget={LENGTH_BUDGET.solution} />
-              </div>
-              <Textarea
-                id="solution"
-                value={data.solution}
-                onChange={(e) => set('solution', e.target.value)}
-                placeholder="Yang dibangun, dan kenapa itu yang menjawab tantangan di sebelah"
-                rows={4}
-              />
-              <p className="text-xs text-muted-foreground">
-                Dua kolom ini bersebelahan di situs, jadi panjangnya sebaiknya berimbang.
+                Satu-satunya teks yang tampil di kartu selain nama klien. Tulis perubahannya dari
+                sisi klien, bukan teknologinya. Tebal, tautan, dan daftar poin ikut terbawa ke
+                situs; dua sampai empat baris paling enak dibaca di kartu.
               </p>
             </div>
             <div className="space-y-2">
@@ -281,7 +246,7 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
                 initialMedia={typeof project?.image === 'object' ? (project?.image as any) : null}
                 onChange={(id) => set('image', id)}
                 disabled={!canWrite}
-                recommendedText="Dipotong ke rasio 16:10 di situs. Rekomendasi 1600×1000 piksel, maks. 4.5MB"
+                recommendedText="Dipotong ke rasio 4:3 di situs. Rekomendasi 1200×900 piksel, maks. 4.5MB"
               />
             </div>
           </CardContent>
@@ -290,7 +255,7 @@ export function ProjectForm({ project, canWrite = false }: { project?: Project; 
         <Card>
           <CardHeader>
             <CardTitle>Teknologi</CardTitle>
-            <CardDescription>Tampil sebagai label kecil di rail kiri. Tiga sampai lima paling terbaca.</CardDescription>
+            <CardDescription>Tampil sebagai label kecil di dasar kartu. Tiga sampai lima paling terbaca.</CardDescription>
           </CardHeader>
           <CardContent>
             <ArrayField

@@ -109,9 +109,13 @@ export const projects = pgTable('projects', {
   slug: varchar('slug').notNull(),
   industry: varchar('industry').notNull(),
   year: varchar('year').notNull(),
-  result: varchar('result').notNull(),
-  challenge: varchar('challenge').notNull(),
-  solution: varchar('solution').notNull(),
+  // Card body on vour.dev, Lexical editor state, same shape as `posts.content`.
+  description: jsonb('description'),
+  // Retired in favour of `description`. Left nullable so the copy already
+  // written stays readable; nothing writes them any more.
+  result: varchar('result'),
+  challenge: varchar('challenge'),
+  solution: varchar('solution'),
   imageId: integer('image_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

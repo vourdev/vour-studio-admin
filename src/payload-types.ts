@@ -316,11 +316,16 @@ export interface Project {
   industry: string;
   year: string;
   /**
-   * Headline hasil yang didapat klien.
+   * Card body on vour.dev, Lexical editor state.
    */
-  result: string;
-  challenge: string;
-  solution: string;
+  description?: unknown;
+  /**
+   * Retired: the card prints one description now. Kept so existing copy is
+   * still readable, no longer written by the form.
+   */
+  result?: string | null;
+  challenge?: string | null;
+  solution?: string | null;
   technology: {
     tech: string;
     id?: string | null;
