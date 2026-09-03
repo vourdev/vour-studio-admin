@@ -1,4 +1,4 @@
-import { eq, desc, asc, or, and, ilike, inArray, count } from 'drizzle-orm'
+import { eq, desc, asc, or, and, ilike, inArray, count, getTableColumns } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 
 import { db } from '@/db'
@@ -6,6 +6,42 @@ import * as schema from '@/db/schema'
 import { getCurrentUser } from './get-current-user'
 import { canRead, canWrite } from './permissions'
 import { revalidateSite } from '@/hooks/revalidate-site'
+
+/**
+ * Turns the JSON a form sends into values Drizzle can hand to Postgres.
+ *
+ * JSON has no date type, so a `timestamp` column arrives as an ISO string.
+ * Drizzle's timestamp mapper calls `.toISOString()` on whatever it is given,
+ * so a string threw `value.toISOString is not a function` and the route
+ * answered 500. Every save from the post form hit this -- publishing and
+ * saving a draft alike -- because the form always sends `date`.
+ *
+ * Unknown keys are dropped rather than passed through: Drizzle throws on a
+ * column it does not know, which would turn one stray field in a payload into
+ * another opaque 500.
+ */
+function coerceToColumns(table: any, body: Record<string, unknown>): Record<string, unknown> {
+  const columns = getTableColumns(table) as Record<string, { columnType?: string; dataType?: string }>
+  const out: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(body)) {
+    const column = columns[key]
+    if (!column) continue
+
+    const isTimestamp = column.columnType === 'PgTimestamp' || column.columnType === 'PgTimestampString'
+    if (isTimestamp && typeof value === 'string') {
+      const parsed = new Date(value)
+      // An unparseable date is dropped so the column keeps whatever it had,
+      // rather than being written as Invalid Date.
+      if (!Number.isNaN(parsed.getTime())) out[key] = parsed
+      continue
+    }
+
+    out[key] = value
+  }
+
+  return out
+}
 
 function extractSubFields(slug: string, body: any) {
   const result: Record<string, any> = {}
@@ -321,7 +357,7 @@ export function createCrudHandlers(table: any, slug: string) {
 
         const subFields = extractSubFields(slug, body)
 
-        const [inserted] = (await db.insert(table).values(body).returning()) as any[]
+        const [inserted] = (await db.insert(table).values(coerceToColumns(table, body)).returning()) as any[]
 
         if (inserted && subFields) {
           await writeSubFields(slug, inserted.id, subFields)
@@ -446,7 +482,10 @@ export function createIdCrudHandlers(table: any, slug: string) {
         delete body.updatedAt
         delete body.id
 
-        await db.update(table).set(body).where(eq(table.id, docId))
+        const values = coerceToColumns(table, body)
+        if (Object.keys(values).length > 0) {
+          await db.update(table).set(values).where(eq(table.id, docId))
+        }
 
         if (subFields) {
           await writeSubFields(slug, docId, subFields)
