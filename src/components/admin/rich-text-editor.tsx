@@ -3,6 +3,7 @@
 import {
   Bold,
   Code,
+  ImagePlus,
   Heading2,
   Heading3,
   Italic,
@@ -31,7 +32,10 @@ import {
   type NodeKey,
   type EditorConfig,
   type SerializedElementNode,
+  type SerializedLexicalNode,
   type Spread,
+  $insertNodes,
+  DecoratorNode,
 } from 'lexical'
 
 import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text'
@@ -42,6 +46,7 @@ import {
   ListNode,
 } from '@lexical/list'
 import { CodeHighlightNode, CodeNode } from '@lexical/code'
+import { HorizontalRuleNode } from '@lexical/react/LexicalHorizontalRuleNode'
 import { HeadingNode, QuoteNode } from '@lexical/rich-text'
 
 type LinkFields = {
@@ -177,6 +182,115 @@ export function $createAutoLinkNode(fields: LinkFields): AutoLinkNode {
 export function $isAutoLinkNode(node: LexicalNode | null | undefined): node is AutoLinkNode {
   return node instanceof AutoLinkNode
 }
+type ImageFields = {
+  src: string
+  altText: string
+  caption: string
+  credit: string | null
+  creditUrl: string | null
+  license: string | null
+  width: number | null
+  height: number | null
+}
+
+type SerializedImageNode = Spread<ImageFields, SerializedLexicalNode>
+
+/**
+ * Block image inside an article.
+ *
+ * Lexical ships no image node, so each editor defines its own, and three apps
+ * have to agree on the JSON: the blog generator writes it (`makeImage` in
+ * `backend-vour-studio/src/lib/lexical.ts`), vour.dev renders it
+ * (`components/blog/article-image.tsx`), and this class is what keeps it alive
+ * through an edit. Without a node registered for the type, Lexical drops the
+ * whole editor state on parse and the post opens blank.
+ *
+ * `credit` and `license` ride along untouched: the pictures come from Wikimedia
+ * Commons and Openverse, and dropping the attribution during an edit would
+ * break the licence.
+ */
+export class ImageNode extends DecoratorNode<React.ReactNode> {
+  __fields: ImageFields
+
+  static getType(): string {
+    return 'image'
+  }
+
+  static clone(node: ImageNode): ImageNode {
+    return new ImageNode(node.__fields, node.__key)
+  }
+
+  constructor(fields: ImageFields, key?: NodeKey) {
+    super(key)
+    this.__fields = fields
+  }
+
+  createDOM(): HTMLElement {
+    const element = document.createElement('figure')
+    element.className = 'my-3'
+    return element
+  }
+
+  updateDOM(): boolean {
+    return false
+  }
+
+  static importJSON(serialized: SerializedImageNode): ImageNode {
+    return $createImageNode({
+      src: serialized.src ?? '',
+      altText: serialized.altText ?? '',
+      caption: serialized.caption ?? '',
+      credit: serialized.credit ?? null,
+      creditUrl: serialized.creditUrl ?? null,
+      license: serialized.license ?? null,
+      width: serialized.width ?? null,
+      height: serialized.height ?? null,
+    })
+  }
+
+  exportJSON(): SerializedImageNode {
+    return {
+      ...super.exportJSON(),
+      type: 'image',
+      version: 1,
+      ...this.__fields,
+    }
+  }
+
+  getFields(): ImageFields {
+    return this.getLatest().__fields
+  }
+
+  isInline(): boolean {
+    return false
+  }
+
+  decorate(): React.ReactNode {
+    const { src, altText, caption, credit, license } = this.__fields
+    const source = [caption, credit, license].filter(Boolean).join(' · ')
+
+    return (
+      <figure className="my-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={altText}
+          className="max-h-80 w-full rounded-md border object-contain"
+        />
+        {source && <figcaption className="mt-1 text-xs text-muted-foreground">{source}</figcaption>}
+      </figure>
+    )
+  }
+}
+
+export function $createImageNode(fields: ImageFields): ImageNode {
+  return new ImageNode(fields)
+}
+
+export function $isImageNode(node: LexicalNode | null | undefined): node is ImageNode {
+  return node instanceof ImageNode
+}
+
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { ListPlugin } from '@lexical/react/LexicalListPlugin'
@@ -223,6 +337,12 @@ const EDITOR_NODES = [
   AutoLinkNode,
   CodeNode,
   CodeHighlightNode,
+  ImageNode,
+  // The generator turns Markdown `---` into a `horizontalrule` node and the
+  // model uses them freely -- seven in a single article. Lexical throws on any
+  // node type it has not been given, and the whole editor state is discarded
+  // with it, so the post would open blank.
+  HorizontalRuleNode,
 ]
 
 function ToolbarButton({
@@ -395,6 +515,32 @@ function Toolbar({ editor }: { editor: LexicalEditor }) {
     })
   }
 
+  const insertImage = () => {
+    const src = window.prompt('URL gambar:')
+    if (!src?.trim()) return
+
+    const altText = window.prompt('Teks alternatif (deskripsi singkat untuk pembaca layar):') ?? ''
+    const caption = window.prompt('Keterangan di bawah gambar (boleh dikosongkan):') ?? ''
+
+    editor.update(() => {
+      $insertNodes([
+        $createImageNode({
+          src: src.trim(),
+          altText: altText.trim(),
+          caption: caption.trim(),
+          // Hand-inserted images carry no catalogue metadata. The generator
+          // fills these in for the pictures it finds; leaving them null is how
+          // the renderer knows there is no credit line to show.
+          credit: null,
+          creditUrl: null,
+          license: null,
+          width: null,
+          height: null,
+        }),
+      ])
+    })
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-0.5 rounded-t-md border border-b-0 bg-muted/40 p-1">
       <ToolbarButton title="Undo" onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}>
@@ -437,6 +583,9 @@ function Toolbar({ editor }: { editor: LexicalEditor }) {
       </ToolbarButton>
       <ToolbarButton title="Tautan" active={active.link} onClick={toggleLink}>
         <LinkIcon className="size-4" />
+      </ToolbarButton>
+      <ToolbarButton title="Sisipkan gambar" onClick={insertImage}>
+        <ImagePlus className="size-4" />
       </ToolbarButton>
     </div>
   )
