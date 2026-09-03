@@ -291,6 +291,94 @@ export function $isImageNode(node: LexicalNode | null | undefined): node is Imag
   return node instanceof ImageNode
 }
 
+type SvgFields = {
+  code: string
+  caption: string
+}
+
+type SerializedSvgNode = Spread<SvgFields, SerializedLexicalNode>
+
+/**
+ * Diagram drawn by the blog generator.
+ *
+ * Registered for the same reason as ImageNode: Lexical throws on a node type it
+ * has not been given and discards the whole editor state with it, so a post
+ * carrying a diagram would open blank here and save blank over the original.
+ *
+ * The markup is rendered through `dangerouslySetInnerHTML`, which is safe only
+ * because the generator ran it through an allow-list sanitizer before storing
+ * (`src/lib/svg-sanitize.ts` there, mirrored in vour.dev). This editor is
+ * behind a login and only ever shows content from that pipeline.
+ */
+export class SvgNode extends DecoratorNode<React.ReactNode> {
+  __fields: SvgFields
+
+  static getType(): string {
+    return 'svg'
+  }
+
+  static clone(node: SvgNode): SvgNode {
+    return new SvgNode(node.__fields, node.__key)
+  }
+
+  constructor(fields: SvgFields, key?: NodeKey) {
+    super(key)
+    this.__fields = fields
+  }
+
+  createDOM(): HTMLElement {
+    const element = document.createElement('figure')
+    element.className = 'my-3'
+    return element
+  }
+
+  updateDOM(): boolean {
+    return false
+  }
+
+  static importJSON(serialized: SerializedSvgNode): SvgNode {
+    return $createSvgNode({
+      code: serialized.code ?? '',
+      caption: serialized.caption ?? '',
+    })
+  }
+
+  exportJSON(): SerializedSvgNode {
+    return {
+      ...super.exportJSON(),
+      type: 'svg',
+      version: 1,
+      ...this.__fields,
+    }
+  }
+
+  isInline(): boolean {
+    return false
+  }
+
+  decorate(): React.ReactNode {
+    const { code, caption } = this.__fields
+
+    return (
+      <figure className="my-2 rounded-md border bg-muted/30 p-3 text-foreground">
+        <div
+          className="[&>svg]:h-auto [&>svg]:w-full"
+          dangerouslySetInnerHTML={{ __html: code }}
+        />
+        {caption && <figcaption className="mt-2 text-xs text-muted-foreground">{caption}</figcaption>}
+      </figure>
+    )
+  }
+}
+
+export function $createSvgNode(fields: SvgFields): SvgNode {
+  return new SvgNode(fields)
+}
+
+export function $isSvgNode(node: LexicalNode | null | undefined): node is SvgNode {
+  return node instanceof SvgNode
+}
+
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { ListPlugin } from '@lexical/react/LexicalListPlugin'
@@ -338,6 +426,7 @@ const EDITOR_NODES = [
   CodeNode,
   CodeHighlightNode,
   ImageNode,
+  SvgNode,
   // The generator turns Markdown `---` into a `horizontalrule` node and the
   // model uses them freely -- seven in a single article. Lexical throws on any
   // node type it has not been given, and the whole editor state is discarded
