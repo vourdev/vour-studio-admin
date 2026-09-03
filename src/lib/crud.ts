@@ -142,8 +142,22 @@ async function writeSubFields(slug: string, parentId: any, subFields: any) {
   }
 }
 
+/**
+ * One document by id or by slug.
+ *
+ * The route hands this whatever was in the URL, and for posts, products and
+ * projects that is usually a slug. Matching it against `table.id` -- a serial
+ * integer -- made Postgres reject the value and the route answer 500 for every
+ * slug it was ever given. `GET /api/posts/<slug>` had never worked; only
+ * `GET /api/posts/<id>` did, which is why the collection listing looked fine.
+ */
 export async function fetchFullDoc(slug: string, table: any, id: any) {
-  const [doc] = await db.select().from(table).where(eq(table.id, id)).limit(1)
+  const numericId = typeof id === "number" ? id : Number(id)
+  const byId = Number.isInteger(numericId) && String(numericId) === String(id)
+  const where =
+    byId || !table.slug ? eq(table.id, numericId) : eq(table.slug, String(id))
+
+  const [doc] = await db.select().from(table).where(where).limit(1)
   if (!doc) return null
 
   const hydratedDoc = { ...doc } as any
